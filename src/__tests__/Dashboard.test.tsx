@@ -35,7 +35,7 @@ jest.mock('../components/dashboard/FuelLevelChart', () => ({ FuelLevelChart: () 
 jest.mock('../components/dashboard/TopSellingProducts', () => ({ TopSellingProducts: () => <div data-testid="top-selling-products" /> }));
 jest.mock('../components/dashboard/RecentTransactions', () => ({ RecentTransactions: () => <div data-testid="recent-transactions" /> }));
 
-describe('Dashboard Page', () => {
+describe('Dashboard Page Test', () => {
   const mockGetDashboard = api.admin.getDashboard as jest.Mock;
   const mockGetSales = api.sales.getAll as jest.Mock;
   const mockGetInventory = api.fuelInventory.getAll as jest.Mock;
