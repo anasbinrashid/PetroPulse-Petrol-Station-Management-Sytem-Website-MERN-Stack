@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { api } from "@/services/api";
 import { toast } from "sonner";
@@ -14,7 +13,7 @@ import { generateMockCustomerData } from "@/utils/customerDashboardMockData";
 export default function CustomerDashboard() {
   const [customerName] = useState(localStorage.getItem("userName") || "Customer");
   const [customerId] = useState(localStorage.getItem("customerId") || "");
-  const [loyaltyPoints] = useState(localStorage.getItem("loyaltyPoints") || "0");
+  const [loyaltyPoints, setLoyaltyPoints] = useState(localStorage.getItem("loyaltyPoints") || "0");
   const [fuelPurchaseData, setFuelPurchaseData] = useState([]);
   const [spendingTrendData, setSpendingTrendData] = useState([]);
   const [paymentMethodData, setPaymentMethodData] = useState([]);
@@ -30,6 +29,66 @@ export default function CustomerDashboard() {
     const fetchCustomerData = async () => {
       setLoading(true);
       
+      try {
+        // First, try to get the dashboard summary which contains all the data we need
+        const dashboardResponse = await api.customer.getDashboardSummary();
+        
+        if (dashboardResponse.success && dashboardResponse.data) {
+          console.log("Dashboard data:", dashboardResponse.data);
+          
+          // Set loyalty points from dashboard data
+          if (dashboardResponse.data.customerInfo && dashboardResponse.data.customerInfo.loyaltyPoints) {
+            setLoyaltyPoints(dashboardResponse.data.customerInfo.loyaltyPoints.toString());
+            localStorage.setItem("loyaltyPoints", dashboardResponse.data.customerInfo.loyaltyPoints.toString());
+          }
+          
+          // Process recent transactions
+          if (dashboardResponse.data.recentActivity && dashboardResponse.data.recentActivity.purchases) {
+            setRecentTransactions(dashboardResponse.data.recentActivity.purchases);
+          }
+          
+          // Set totals from statistics
+          if (dashboardResponse.data.statistics) {
+            const stats = dashboardResponse.data.statistics;
+            setTotals({
+              totalSpent: stats.allTime?.totalSpent || 0,
+              totalGallons: stats.allTime?.totalGallons || 0,
+              totalTransactions: stats.allTime?.totalVisits || 0
+            });
+          }
+          
+          // Set chart data directly from the dashboard data if available
+          if (dashboardResponse.data.monthlyData) {
+            setFuelPurchaseData(dashboardResponse.data.monthlyData);
+            
+            // Create spending trend data from monthly data
+            const trendData = dashboardResponse.data.monthlyData.map((item: any) => ({
+              month: item.month,
+              amount: item.totalAmount
+            }));
+            setSpendingTrendData(trendData);
+          }
+          
+          // Set payment method data
+          if (dashboardResponse.data.paymentMethods) {
+            setPaymentMethodData(dashboardResponse.data.paymentMethods);
+          }
+        } else {
+          // If dashboard data fails, fall back to fuel purchases endpoint
+          await fetchFuelPurchaseData();
+        }
+      } catch (error) {
+        console.error("Error fetching dashboard data:", error);
+        toast.error("Failed to load dashboard data");
+        
+        // Try the fuel purchases endpoint as fallback
+        await fetchFuelPurchaseData();
+      } finally {
+        setLoading(false);
+      }
+    };
+    
+    const fetchFuelPurchaseData = async () => {
       try {
         // Fetch fuel purchases for the customer
         const response = await api.sales.getFuelPurchasesByCustomer(customerId);
@@ -59,15 +118,14 @@ export default function CustomerDashboard() {
             totalGallons: data.totalGallons || 0,
             totalTransactions: data.fuelSales?.length || 0
           });
+        } else {
+          // Fallback to mock data
+          setMockData();
         }
       } catch (error) {
-        console.error("Error fetching customer data:", error);
-        toast.error("Failed to load dashboard data");
-        
-        // Fallback to mock data if API fails
+        console.error("Error fetching fuel purchase data:", error);
+        // Fallback to mock data
         setMockData();
-      } finally {
-        setLoading(false);
       }
     };
     

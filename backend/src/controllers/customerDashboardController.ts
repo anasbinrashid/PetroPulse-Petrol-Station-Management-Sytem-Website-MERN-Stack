@@ -320,6 +320,111 @@ export const getDashboardSummary = typedAsyncHandler(async (req: Request, res: R
       }
     ]);
     
+    // Get all-time purchase stats
+    const allTimeStats = await FuelPurchaseModel.aggregate([
+      { 
+        $match: { 
+          customerId: customerId
+        } 
+      },
+      { 
+        $group: {
+          _id: null,
+          purchaseCount: { $sum: 1 },
+          totalSpent: { $sum: '$totalAmount' },
+          totalGallons: { $sum: '$gallons' }
+        }
+      }
+    ]);
+    
+    // Get monthly purchase data (for charts)
+    const currentYear = new Date().getFullYear();
+    const monthlyData = await FuelPurchaseModel.aggregate([
+      {
+        $match: {
+          customerId: customerId,
+          date: {
+            $gte: new Date(`${currentYear}-01-01T00:00:00.000Z`),
+            $lte: new Date(`${currentYear}-12-31T23:59:59.999Z`)
+          }
+        }
+      },
+      {
+        $group: {
+          _id: { $month: "$date" },
+          regular: {
+            $sum: {
+              $cond: [
+                { $eq: ["$fuelType", "regular"] },
+                "$gallons",
+                0
+              ]
+            }
+          },
+          premium: {
+            $sum: {
+              $cond: [
+                { $eq: ["$fuelType", "premium"] },
+                "$gallons",
+                0
+              ]
+            }
+          },
+          diesel: {
+            $sum: {
+              $cond: [
+                { $eq: ["$fuelType", "diesel"] },
+                "$gallons",
+                0
+              ]
+            }
+          },
+          totalAmount: { $sum: "$totalAmount" }
+        }
+      },
+      {
+        $sort: { _id: 1 }
+      }
+    ]);
+    
+    // Format monthly data
+    const months = [
+      "Jan", "Feb", "Mar", "Apr", "May", "Jun",
+      "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"
+    ];
+    
+    const formattedMonthlyData = monthlyData.map(month => ({
+      month: months[month._id - 1],
+      regular: parseFloat(month.regular.toFixed(2)),
+      premium: parseFloat(month.premium.toFixed(2)),
+      diesel: parseFloat(month.diesel.toFixed(2)),
+      totalAmount: parseFloat(month.totalAmount.toFixed(2))
+    }));
+    
+    // Get payment method breakdown
+    const paymentMethods = await FuelPurchaseModel.aggregate([
+      {
+        $match: {
+          customerId: customerId
+        }
+      },
+      {
+        $group: {
+          _id: "$paymentMethod",
+          value: { $sum: "$totalAmount" },
+          count: { $sum: 1 }
+        }
+      },
+      {
+        $project: {
+          name: "$_id",
+          value: { $round: ["$value", 2] },
+          count: 1,
+          _id: 0
+        }
+      }
+    ]);
+    
     // Get loyalty point activity
     const recentLoyalty = await LoyaltyTransactionModel.find({ customerId })
       .sort({ date: -1 })
@@ -355,13 +460,17 @@ export const getDashboardSummary = typedAsyncHandler(async (req: Request, res: R
           averageTransaction: 0
         },
         allTime: {
-          totalVisits: customer.purchaseHistory?.length || 0,
-          totalSpent: customer.totalSpent,
+          totalVisits: allTimeStats.length > 0 ? allTimeStats[0].purchaseCount : 0,
+          totalSpent: allTimeStats.length > 0 ? parseFloat(allTimeStats[0].totalSpent.toFixed(2)) : 0,
+          totalGallons: allTimeStats.length > 0 ? parseFloat(allTimeStats[0].totalGallons.toFixed(2)) : 0,
           membershipProgress: customer.membershipLevel === 'platinum' ? 100 :
-                             customer.membershipLevel === 'gold' ? 75 :
-                             customer.membershipLevel === 'silver' ? 50 : 25
+                              customer.membershipLevel === 'gold' ? 75 :
+                              customer.membershipLevel === 'silver' ? 50 : 25
         }
-      }
+      },
+      // Include data for charts
+      monthlyData: formattedMonthlyData,
+      paymentMethods: paymentMethods
     });
   } catch (error: any) {
     console.error('Error getting dashboard summary:', error.message);
