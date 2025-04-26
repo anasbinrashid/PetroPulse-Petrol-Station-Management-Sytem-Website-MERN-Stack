@@ -26,25 +26,29 @@ import adminCustomerRoutes from './routes/adminCustomerRoutes';
 // Load environment variables
 dotenv.config();
 
-// Connect to MongoDB
-connectDB();
+// Initialize database connections
+const initDatabases = async () => {
+  try {
+    // Connect to main MongoDB
+    await connectDB();
+    console.log('Main database connection established');
+    
+    // Get employee database connection
+    await employeeDbConnection;
+    console.log('Employee database connection ready');
+    
+    // Get customer database connection
+    await connectCustomerDB();
+    console.log('Customer database connection ready');
+  } catch (err) {
+    console.error('Database connection error:', err);
+  }
+};
 
-// Get employee database connection
-employeeDbConnection.then(() => {
-  console.log('Employee database connection ready');
-}).catch(err => {
-  console.error('Error connecting to employee database:', err);
-});
-
-// Get customer database connection
-connectCustomerDB().then(() => {
-  console.log('Customer database connection ready');
-}).catch(err => {
-  console.error('Error connecting to customer database:', err);
-});
+// Run database initialization
+initDatabases();
 
 const app: Express = express();
-const PORT = process.env.PORT || 5000;
 
 // Enhanced request logging middleware
 app.use((req: Request, res: Response, next) => {
@@ -87,6 +91,16 @@ app.get('/', (req, res) => {
   res.send('PetroPulse API is running...');
 });
 
+// Root API route for health check
+app.get('/api', (req, res) => {
+  res.json({
+    status: 'ok',
+    message: 'PetroPulse API is operational',
+    version: '1.0.0',
+    timestamp: new Date().toISOString()
+  });
+});
+
 // Error handling middleware
 app.use((err: any, req: Request, res: Response, next: any) => {
   console.error(`[ERROR] ${err.message}`);
@@ -100,12 +114,18 @@ app.use((err: any, req: Request, res: Response, next: any) => {
   });
 });
 
-// Start server
-app.listen(PORT, () => {
-  console.log(`⚡️ Server is running on http://localhost:${PORT}`);
-  console.log(`📊 API endpoints available at http://localhost:${PORT}/api`);
-  console.log(`🧩 Admin dashboard API: http://localhost:${PORT}/api/admin`);
-  console.log(`👷 Employee dashboard API: http://localhost:${PORT}/api/employee`);
-  console.log(`🛒 Customer dashboard API: http://localhost:${PORT}/api/customer`);
-  console.log(`🔧 Environment: ${process.env.NODE_ENV || 'development'}`);
-});
+// Start server if not running in serverless environment (like Vercel)
+if (process.env.NODE_ENV !== 'production') {
+  const PORT = process.env.PORT || 5000;
+  app.listen(PORT, () => {
+    console.log(`⚡️ Server is running on http://localhost:${PORT}`);
+    console.log(`📊 API endpoints available at http://localhost:${PORT}/api`);
+    console.log(`🧩 Admin dashboard API: http://localhost:${PORT}/api/admin`);
+    console.log(`👷 Employee dashboard API: http://localhost:${PORT}/api/employee`);
+    console.log(`🛒 Customer dashboard API: http://localhost:${PORT}/api/customer`);
+    console.log(`🔧 Environment: ${process.env.NODE_ENV || 'development'}`);
+  });
+}
+
+// Export the Express app for serverless environments
+export default app;
