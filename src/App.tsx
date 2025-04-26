@@ -22,7 +22,6 @@ import Index from "@/pages/Index";
 import FuelInventory from "@/pages/inventory/FuelInventory";
 import Products from "@/pages/inventory/Products";
 import Transactions from "@/pages/sales/Transactions";
-import SalesReports from "@/pages/sales/Reports";
 import Expenses from "@/pages/finance/Expenses";
 import Revenue from "@/pages/finance/Revenue";
 
@@ -119,9 +118,7 @@ const App = () => (
             <Route path="/inventory/products" element={<Products />} />
             
             {/* Sales routes */}
-            <Route path="/sales" element={<Sales />} />
             <Route path="/sales/transactions" element={<Transactions />} />
-            <Route path="/sales/reports" element={<SalesReports />} />
             
             {/* Other main routes */}
             <Route path="/employees" element={<Employees />} />

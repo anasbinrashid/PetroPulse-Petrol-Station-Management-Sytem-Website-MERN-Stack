@@ -13,6 +13,12 @@ export interface IEmployeeProfile extends Document {
   department: string;
   position: string;
   
+  // Fields needed for admin display
+  role?: string;
+  status?: string;
+  startDate?: Date;
+  shift?: string;
+  
   // Additional Profile Info
   bio?: string;
   skills?: string[];
@@ -97,6 +103,29 @@ const EmployeeProfileSchema: Schema = new Schema(
       type: String,
       required: [true, 'Position is required'],
       trim: true,
+    },
+    // Add fields needed for admin display
+    role: {
+      type: String,
+      trim: true,
+      default: function() {
+        // Default role to the position if not provided
+        return this.position;
+      }
+    },
+    status: {
+      type: String,
+      enum: ['active', 'on_leave', 'inactive', 'terminated'],
+      default: 'active'
+    },
+    startDate: {
+      type: Date,
+      default: Date.now
+    },
+    shift: {
+      type: String,
+      enum: ['morning', 'afternoon', 'evening', 'night', 'flexible'],
+      default: 'morning'
     },
     bio: {
       type: String,

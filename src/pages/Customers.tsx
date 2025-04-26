@@ -55,13 +55,25 @@ export default function Customers() {
         params.status = statusFilter;
       }
       
-      const response = await api.customers.getAll(params);
+      // Access the customers collection directly from the customer database
+      // Still using admin authentication
+      const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:5000/api'}/admin/customer-db/profiles${statusFilter ? `?status=${statusFilter}` : ''}`, {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+          'Content-Type': 'application/json',
+          'Cache-Control': 'no-cache, no-store, must-revalidate',
+          'Pragma': 'no-cache',
+          'Expires': '0'
+        }
+      });
       
-      if (response.success && response.data) {
-        console.log(`Successfully fetched ${response.data.length} customers`);
-        setCustomers(response.data);
+      const data = await response.json();
+      
+      if (response.ok && data) {
+        console.log(`Successfully fetched ${data.length} customers from customer database`);
+        setCustomers(data);
       } else {
-        console.error('Failed to fetch customers:', response.error);
+        console.error('Failed to fetch customers:', data.message || 'Unknown error');
         toast({
           title: "Error",
           description: "Failed to load customers data",
@@ -87,9 +99,18 @@ export default function Customers() {
   // Handle customer status update
   const handleUpdateStatus = async (customerId: string, newStatus: string) => {
     try {
-      const response = await api.customers.update(customerId, { status: newStatus });
+      const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:5000/api'}/admin/customers/${customerId}/status`, {
+        method: 'PATCH',
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ status: newStatus })
+      });
       
-      if (response.success) {
+      const data = await response.json();
+      
+      if (response.ok) {
         toast({
           title: "Success",
           description: `Customer status updated to ${newStatus}`
@@ -98,7 +119,7 @@ export default function Customers() {
       } else {
         toast({
           title: "Error",
-          description: response.error || "Failed to update customer status",
+          description: data.message || "Failed to update customer status",
           variant: "destructive"
         });
       }
@@ -115,9 +136,17 @@ export default function Customers() {
   // Handle customer deletion
   const handleDeleteCustomer = async (customerId: string) => {
     try {
-      const response = await api.customers.delete(customerId);
+      const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:5000/api'}/admin/customers/${customerId}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+          'Content-Type': 'application/json'
+        }
+      });
       
-      if (response.success) {
+      const data = await response.json();
+      
+      if (response.ok) {
         toast({
           title: "Success",
           description: "Customer removed successfully"
@@ -126,7 +155,7 @@ export default function Customers() {
       } else {
         toast({
           title: "Error",
-          description: response.error || "Failed to delete customer",
+          description: data.message || "Failed to delete customer",
           variant: "destructive"
         });
       }
@@ -157,12 +186,21 @@ export default function Customers() {
   // Update loyalty points
   const handleUpdateLoyaltyPoints = async (customerId: string, operation: string, amount: number) => {
     try {
-      const response = await api.customers.updateLoyaltyPoints(customerId, {
-        points: amount,
-        operation: operation as 'add' | 'subtract' | 'set'
+      const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:5000/api'}/admin/customers/${customerId}/loyalty`, {
+        method: 'PATCH',
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          points: amount,
+          operation: operation as 'add' | 'subtract' | 'set'
+        })
       });
       
-      if (response.success) {
+      const data = await response.json();
+      
+      if (response.ok) {
         toast({
           title: "Success",
           description: `Loyalty points ${operation}ed successfully`
@@ -171,7 +209,7 @@ export default function Customers() {
       } else {
         toast({
           title: "Error",
-          description: response.error || "Failed to update loyalty points",
+          description: data.message || "Failed to update loyalty points",
           variant: "destructive"
         });
       }

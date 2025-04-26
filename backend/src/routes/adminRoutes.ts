@@ -11,7 +11,9 @@ import {
   getReportById,
   getDashboardData,
   getInventory,
-  getSales
+  getSales,
+  getEmployeeDbProfiles,
+  getCustomerDbProfiles,
 } from '../controllers/adminController';
 
 const router = express.Router();
@@ -35,6 +37,10 @@ router.get('/inventory', getInventory);
 
 // Sales
 router.get('/sales', getSales);
+
+// Direct access to employee and customer databases
+router.get('/employee-db/profiles', getEmployeeDbProfiles);
+router.get('/customer-db/profiles', getCustomerDbProfiles);
 
 // Use specialized routers for more complex resources
 router.use('/employees', adminEmployeeRoutes);

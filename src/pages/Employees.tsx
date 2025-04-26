@@ -54,13 +54,25 @@ export default function Employees() {
         params.department = department;
       }
       
-      const response = await api.employees.getAll(params);
+      // Access the employees collection directly from the employee database
+      // Still using admin authentication
+      const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:5000/api'}/admin/employee-db/profiles${department ? `?department=${department}` : ''}`, {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+          'Content-Type': 'application/json',
+          'Cache-Control': 'no-cache, no-store, must-revalidate',
+          'Pragma': 'no-cache',
+          'Expires': '0'
+        }
+      });
       
-      if (response.success && response.data) {
-        console.log(`Successfully fetched ${response.data.length} employees`);
-        setEmployees(response.data);
+      const data = await response.json();
+      
+      if (response.ok && data) {
+        console.log(`Successfully fetched ${data.length} employees from employee database`);
+        setEmployees(data);
       } else {
-        console.error('Failed to fetch employees:', response.error);
+        console.error('Failed to fetch employees:', data.message || 'Unknown error');
         toast({
           title: "Error",
           description: "Failed to load employees data",
@@ -86,9 +98,18 @@ export default function Employees() {
   // Handle employee status update
   const handleUpdateStatus = async (employeeId: string, newStatus: string) => {
     try {
-      const response = await api.employees.updateStatus(employeeId, newStatus);
+      const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:5000/api'}/admin/employees/${employeeId}/status`, {
+        method: 'PATCH',
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ status: newStatus })
+      });
       
-      if (response.success) {
+      const data = await response.json();
+      
+      if (response.ok) {
         toast({
           title: "Success",
           description: `Employee status updated to ${newStatus}`
@@ -97,7 +118,7 @@ export default function Employees() {
       } else {
         toast({
           title: "Error",
-          description: response.error || "Failed to update employee status",
+          description: data.message || "Failed to update employee status",
           variant: "destructive"
         });
       }
@@ -114,9 +135,17 @@ export default function Employees() {
   // Handle employee deletion
   const handleDeleteEmployee = async (employeeId: string) => {
     try {
-      const response = await api.employees.delete(employeeId);
+      const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:5000/api'}/admin/employees/${employeeId}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+          'Content-Type': 'application/json'
+        }
+      });
       
-      if (response.success) {
+      const data = await response.json();
+      
+      if (response.ok) {
         toast({
           title: "Success",
           description: "Employee removed successfully"
@@ -125,7 +154,7 @@ export default function Employees() {
       } else {
         toast({
           title: "Error",
-          description: response.error || "Failed to delete employee",
+          description: data.message || "Failed to delete employee",
           variant: "destructive"
         });
       }

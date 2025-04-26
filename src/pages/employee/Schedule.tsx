@@ -8,8 +8,8 @@ import { Separator } from "@/components/ui/separator";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { toast } from "sonner";
 import { Calendar, ArrowRight, Loader2, Users, Clock, MapPin, Info, CheckCircle, CalendarDays } from "lucide-react";
-import axios from "axios";
 import { format, addDays, parseISO, isToday, isBefore, isAfter, differenceInDays, startOfWeek, addWeeks, endOfWeek, startOfMonth, endOfMonth, eachDayOfInterval, isSameDay } from "date-fns";
+import { api } from "@/services/api";
 
 interface ScheduleEvent {
   _id: string;
@@ -38,90 +38,105 @@ export default function EmployeeSchedule() {
     fetchScheduleData();
   }, []);
 
+  // Sample fallback schedule data in case API fails or returns empty data
+  const mockScheduleData: ScheduleEvent[] = [
+    {
+      _id: "mock1",
+      title: "Morning Shift",
+      description: "Regular morning fuel station shift",
+      startDate: format(addDays(new Date(), 1), 'yyyy-MM-dd'),
+      endDate: format(addDays(new Date(), 1), 'yyyy-MM-dd'),
+      startTime: "08:00",
+      endTime: "16:00",
+      location: "Main Station, Pump 1-3",
+      isAllDay: false,
+      type: "shift",
+      status: "scheduled"
+    },
+    {
+      _id: "mock2",
+      title: "Staff Meeting",
+      description: "Monthly staff coordination meeting",
+      startDate: format(addDays(new Date(), 3), 'yyyy-MM-dd'),
+      endDate: format(addDays(new Date(), 3), 'yyyy-MM-dd'),
+      startTime: "14:00",
+      endTime: "15:30",
+      location: "Conference Room",
+      isAllDay: false,
+      type: "meeting",
+      status: "scheduled"
+    },
+    {
+      _id: "mock3",
+      title: "Evening Shift",
+      description: "Evening shift at convenience store",
+      startDate: format(addDays(new Date(), 5), 'yyyy-MM-dd'),
+      endDate: format(addDays(new Date(), 5), 'yyyy-MM-dd'),
+      startTime: "16:00",
+      endTime: "00:00",
+      location: "Convenience Store",
+      isAllDay: false,
+      type: "shift",
+      status: "scheduled"
+    }
+  ];
+
   const fetchScheduleData = async () => {
     try {
       setLoading(true);
-      
-      // Get authentication token and email from localStorage
-      const token = localStorage.getItem('token');
-      const email = localStorage.getItem('userEmail');
-      
-      console.log('[DEBUG][Schedule] Fetching schedule data with token:', token ? 'Present' : 'Missing');
-      console.log('[DEBUG][Schedule] User email from localStorage:', email);
-      
-      if (!token) {
-        console.log('[DEBUG][Schedule] Authentication token missing');
-        toast.error('Authentication required. Please log in again.');
-        return;
-      }
-      
-      if (!email) {
-        console.log('[DEBUG][Schedule] User email missing');
-        toast.error('User information missing. Please log in again.');
-        return;
-      }
-      
-      // Use start and end date for the current month to get a wide range of events
-      const startDate = startOfMonth(new Date());
-      const endDate = endOfMonth(addMonths(new Date(), 2)); // Get 3 months of schedule
-      
-      console.log(`[DEBUG][Schedule] Fetching schedule from ${format(startDate, 'yyyy-MM-dd')} to ${format(endDate, 'yyyy-MM-dd')}`);
-      
-      // Use the API service instead of direct axios call
-      const response = await axios.post('/api/employee/getSchedule', {
+      const startDate = startOfWeek(selectedDate, { weekStartsOn: 1 });
+      const endDate = endOfWeek(selectedDate, { weekStartsOn: 1 });
+
+      console.log('[DEBUG][Schedule] Fetching schedule for date range:', {
         startDate: format(startDate, 'yyyy-MM-dd'),
-        endDate: format(endDate, 'yyyy-MM-dd')
-      }, {
-        headers: {
-          Authorization: `Bearer ${token}`
-        }
+        endDate: format(endDate, 'yyyy-MM-dd'),
+        selectedDate: format(selectedDate, 'yyyy-MM-dd')
       });
+
+      const response = await api.employee.getSchedule(
+        format(startDate, 'yyyy-MM-dd'),
+        format(endDate, 'yyyy-MM-dd')
+      );
       
-      console.log('[DEBUG][Schedule] API response:', JSON.stringify(response));
-      
-      if (response.data.success) {
-        // Handle different possible response formats
-        let events: ScheduleEvent[] = [];
-        
-        if (Array.isArray(response.data.data)) {
-          console.log('[DEBUG][Schedule] Response data is an array');
-          events = response.data.data;
-        } else if (response.data.data?.schedules && Array.isArray(response.data.data.schedules)) {
-          console.log('[DEBUG][Schedule] Response data contains schedules array');
-          events = response.data.data.schedules;
-        } else if (typeof response.data.data === 'object') {
-          console.log('[DEBUG][Schedule] Response data is an object, looking for schedule data');
-          // Try to find an array in the response
-          for (const key in response.data.data) {
-            if (Array.isArray(response.data.data[key])) {
-              console.log(`[DEBUG][Schedule] Found array in response.data.${key}`);
-              events = response.data.data[key];
-              break;
-            }
-          }
-        }
-        
-        console.log(`[DEBUG][Schedule] Retrieved ${events.length} schedule events`);
-        
-        if (events.length === 0) {
-          console.log('[DEBUG][Schedule] No events found in response');
-          toast.info('No scheduled events found for this period');
-        }
-        
-        setScheduleEvents(events);
+      console.log('[DEBUG][Schedule] API response:', response);
+
+      if (response && response.data) {
+        // Transform the backend schedule data to match frontend format
+        const scheduleData: ScheduleEvent[] = response.data.flatMap((schedule: any) => {
+          console.log('[DEBUG][Schedule] Processing schedule:', schedule);
+          return schedule.shifts.map((shift: any) => {
+            // Convert day name to date
+            const dayIndex = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'].indexOf(shift.day);
+            const shiftDate = addDays(schedule.weekStartDate, dayIndex);
+            
+            return {
+              _id: `${schedule._id}-${shift.day}`,
+              title: shift.isOffDay ? 'Day Off' : 'Work Shift',
+              description: shift.notes,
+              startDate: format(shiftDate, 'yyyy-MM-dd'),
+              endDate: format(shiftDate, 'yyyy-MM-dd'),
+              startTime: shift.startTime,
+              endTime: shift.endTime,
+              location: 'Main Office',
+              department: schedule.department,
+              isAllDay: false,
+              type: 'shift',
+              status: schedule.status,
+              employees: [schedule.employeeId]
+            };
+          });
+        });
+
+        console.log('[DEBUG][Schedule] Transformed schedule data:', scheduleData);
+        setScheduleEvents(scheduleData);
       } else {
-        console.log('[DEBUG][Schedule] Failed to fetch schedule data:', response.data.error);
-        toast.error(`Failed to load schedule data: ${response.data.error || 'Unknown error'}`);
+        console.warn('[Schedule] No schedule data received from API');
+        setScheduleEvents([]);
       }
-    } catch (error: any) {
-      console.error('[DEBUG][Schedule] Error fetching schedule data:', error);
-      if (error.response && error.response.status === 401) {
-        console.log('[DEBUG][Schedule] 401 Unauthorized error');
-        toast.error('Session expired. Please log in again.');
-      } else {
-        console.log('[DEBUG][Schedule] Other API error:', error.message);
-        toast.error(`Failed to load schedule data: ${error.message || 'Unknown error'}`);
-      }
+    } catch (error) {
+      console.error('[Schedule] Error fetching schedule:', error);
+      toast.error('Failed to fetch schedule data');
+      setScheduleEvents([]);
     } finally {
       setLoading(false);
     }
@@ -137,6 +152,8 @@ export default function EmployeeSchedule() {
   // Filter events for the selected date
   const getEventsForDate = (date: Date): ScheduleEvent[] => {
     return scheduleEvents.filter(event => {
+      if (!event.startDate || !event.endDate) return false;
+      
       const eventStart = parseISO(event.startDate);
       const eventEnd = parseISO(event.endDate);
       
@@ -151,6 +168,8 @@ export default function EmployeeSchedule() {
     const weekEnd = endOfWeek(selectedDate, { weekStartsOn: 0 });
     
     return scheduleEvents.filter(event => {
+      if (!event.startDate || !event.endDate) return false;
+      
       const eventStart = parseISO(event.startDate);
       const eventEnd = parseISO(event.endDate);
       
@@ -182,17 +201,17 @@ export default function EmployeeSchedule() {
   const getEventBadgeColor = (type: string) => {
     switch (type) {
       case 'shift':
-        return "bg-blue-100 text-blue-800 border-blue-300";
+        return "bg-blue-600 text-white border-blue-700";
       case 'meeting':
-        return "bg-purple-100 text-purple-800 border-purple-300";
+        return "bg-purple-600 text-white border-purple-700";
       case 'training':
-        return "bg-green-100 text-green-800 border-green-300";
+        return "bg-green-600 text-white border-green-700";
       case 'holiday':
-        return "bg-red-100 text-red-800 border-red-300";
+        return "bg-red-600 text-white border-red-700";
       case 'event':
-        return "bg-amber-100 text-amber-800 border-amber-300";
+        return "bg-amber-600 text-white border-amber-700";
       default:
-        return "bg-gray-100 text-gray-800 border-gray-300";
+        return "bg-gray-600 text-white border-gray-700";
     }
   };
 
@@ -200,13 +219,13 @@ export default function EmployeeSchedule() {
   const getStatusBadgeColor = (status: string) => {
     switch (status) {
       case 'scheduled':
-        return "bg-blue-100 text-blue-800 border-blue-300";
+        return "bg-blue-600 text-white border-blue-700";
       case 'completed':
-        return "bg-green-100 text-green-800 border-green-300";
+        return "bg-green-600 text-white border-green-700";
       case 'cancelled':
-        return "bg-red-100 text-red-800 border-red-300";
+        return "bg-red-600 text-white border-red-700";
       default:
-        return "bg-gray-100 text-gray-800 border-gray-300";
+        return "bg-gray-600 text-white border-gray-700";
     }
   };
 
@@ -228,6 +247,8 @@ export default function EmployeeSchedule() {
     
     return scheduleEvents
       .filter(event => {
+        if (!event.startDate) return false;
+        
         const eventStart = parseISO(event.startDate);
         return (
           (isAfter(eventStart, today) || isSameDay(eventStart, today)) && 
@@ -235,6 +256,7 @@ export default function EmployeeSchedule() {
         );
       })
       .sort((a, b) => {
+        if (!a.startDate || !b.startDate) return 0;
         return new Date(a.startDate).getTime() - new Date(b.startDate).getTime();
       });
   };
@@ -245,10 +267,13 @@ export default function EmployeeSchedule() {
     
     const upcomingEvents = scheduleEvents
       .filter(event => {
+        if (!event.startDate) return false;
+        
         const eventStart = parseISO(event.startDate);
         return isAfter(eventStart, today) || isSameDay(eventStart, today);
       })
       .sort((a, b) => {
+        if (!a.startDate || !b.startDate) return 0;
         return new Date(a.startDate).getTime() - new Date(b.startDate).getTime();
       });
     
@@ -267,6 +292,8 @@ export default function EmployeeSchedule() {
   
   // Format date range display
   const formatDateRange = (startDate: string, endDate: string): string => {
+    if (!startDate || !endDate) return "Invalid date range";
+    
     const start = parseISO(startDate);
     const end = parseISO(endDate);
     
@@ -309,7 +336,7 @@ export default function EmployeeSchedule() {
 
       {/* Next Event Card */}
       {nextEvent && (
-        <Card className="bg-blue-50 border-blue-200">
+        <Card className="bg-blue-800 border-grey-200">
           <CardHeader className="pb-2">
             <CardTitle className="text-lg">Next Scheduled Event</CardTitle>
           </CardHeader>
@@ -437,43 +464,49 @@ export default function EmployeeSchedule() {
               {eventsForDate.length > 0 ? (
                 <div className="space-y-4">
                   {eventsForDate.map((event) => (
-                    <div key={event._id} className="border rounded-md p-4 hover:bg-muted/50">
-                      <div className="flex flex-col md:flex-row md:items-center md:justify-between">
-                        <div>
-                          <div className="flex items-center gap-2">
-                            <h3 className="text-lg font-bold">{event.title}</h3>
-                            <Badge className={getEventBadgeColor(event.type)}>
-                              {event.type.charAt(0).toUpperCase() + event.type.slice(1)}
-                            </Badge>
-                            <Badge className={getStatusBadgeColor(event.status)}>
-                              {event.status.charAt(0).toUpperCase() + event.status.slice(1)}
-                            </Badge>
+                    <Card key={event._id} className="hover:bg-muted/50 transition-colors">
+                      <CardContent className="p-4">
+                        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+                          <div className="space-y-2">
+                            <div className="flex items-center gap-2">
+                              <h3 className="text-sm font-medium">{event.title}</h3>
+                              <div className="flex gap-2">
+                                <Badge variant="outline" className={getEventBadgeColor(event.type)}>
+                                  {event.type.charAt(0).toUpperCase() + event.type.slice(1)}
+                                </Badge>
+                                <Badge variant="outline" className={getStatusBadgeColor(event.status)}>
+                                  {event.status.charAt(0).toUpperCase() + event.status.slice(1)}
+                                </Badge>
+                              </div>
+                            </div>
+                            
+                            <div className="flex flex-col gap-1 text-sm text-muted-foreground">
+                              <div className="flex items-center">
+                                <Clock className="h-4 w-4 mr-2" />
+                                <span>{formatEventTime(event)}</span>
+                              </div>
+                              
+                              {event.location && (
+                                <div className="flex items-center">
+                                  <MapPin className="h-4 w-4 mr-2" />
+                                  <span>{event.location}</span>
+                                </div>
+                              )}
+                              
+                              {event.description && (
+                                <div className="mt-1">
+                                  <span className="text-sm">{event.description}</span>
+                                </div>
+                              )}
+                            </div>
                           </div>
                           
-                          <div className="flex items-center mt-2">
-                            <Clock className="h-4 w-4 mr-2 text-muted-foreground" />
-                            <span className="text-sm text-muted-foreground">{formatEventTime(event)}</span>
-                          </div>
-                          
-                          {event.location && (
-                            <div className="flex items-center mt-1">
-                              <MapPin className="h-4 w-4 mr-2 text-muted-foreground" />
-                              <span className="text-sm text-muted-foreground">{event.location}</span>
-                            </div>
-                          )}
-                          
-                          {event.description && (
-                            <div className="mt-2 text-sm text-muted-foreground">
-                              {event.description}
-                            </div>
-                          )}
+                          <Button variant="outline" size="sm" onClick={() => handleViewEvent(event)}>
+                            View Details
+                          </Button>
                         </div>
-                        
-                        <Button className="mt-4 md:mt-0" size="sm" onClick={() => handleViewEvent(event)}>
-                          View Details
-                        </Button>
-                      </div>
-                    </div>
+                      </CardContent>
+                    </Card>
                   ))}
                 </div>
               ) : (
@@ -499,37 +532,41 @@ export default function EmployeeSchedule() {
                     return (
                       <TableRow key={index} className={isToday(day) ? "bg-green-50" : ""}>
                         <TableCell className="font-medium">
-                          <div className="font-bold">{format(day, 'EEEE')}</div>
+                          <div className="text-sm font-medium">{format(day, 'EEEE')}</div>
                           <div className="text-sm text-muted-foreground">{format(day, 'MMMM d')}</div>
                         </TableCell>
                         <TableCell>
                           {dayEvents.length > 0 ? (
                             <div className="space-y-2">
                               {dayEvents.map((event) => (
-                                <div key={event._id} className="border rounded-md p-2 flex items-center justify-between hover:bg-muted/50 cursor-pointer" onClick={() => handleViewEvent(event)}>
-                                  <div>
-                                    <div className="flex items-center gap-2">
-                                      <span className="font-medium">{event.title}</span>
-                                      <Badge className={getEventBadgeColor(event.type)}>
-                                        {event.type.charAt(0).toUpperCase() + event.type.slice(1)}
-                                      </Badge>
+                                <Card key={event._id} className="hover:bg-muted/50 transition-colors">
+                                  <CardContent className="p-3">
+                                    <div className="flex items-center justify-between">
+                                      <div className="space-y-1">
+                                        <div className="flex items-center gap-2">
+                                          <span className="text-sm font-medium">{event.title}</span>
+                                          <Badge variant="outline" className={getEventBadgeColor(event.type)}>
+                                            {event.type.charAt(0).toUpperCase() + event.type.slice(1)}
+                                          </Badge>
+                                        </div>
+                                        <div className="flex items-center text-sm text-muted-foreground">
+                                          <Clock className="h-3 w-3 mr-1" />
+                                          <span>{formatEventTime(event)}</span>
+                                        </div>
+                                      </div>
+                                      <Button size="sm" variant="ghost" onClick={(e) => {
+                                        e.stopPropagation();
+                                        handleViewEvent(event);
+                                      }}>
+                                        <Info className="h-4 w-4" />
+                                      </Button>
                                     </div>
-                                    <div className="flex items-center mt-1">
-                                      <Clock className="h-3 w-3 mr-1 text-muted-foreground" />
-                                      <span className="text-xs text-muted-foreground">{formatEventTime(event)}</span>
-                                    </div>
-                                  </div>
-                                  <Button size="sm" variant="ghost" onClick={(e) => {
-                                    e.stopPropagation();
-                                    handleViewEvent(event);
-                                  }}>
-                                    <Info className="h-4 w-4" />
-                                  </Button>
-                                </div>
+                                  </CardContent>
+                                </Card>
                               ))}
                             </div>
                           ) : (
-                            <div className="text-muted-foreground">No events</div>
+                            <div className="text-sm text-muted-foreground">No events</div>
                           )}
                         </TableCell>
                       </TableRow>
@@ -544,8 +581,8 @@ export default function EmployeeSchedule() {
 
       {/* Event Details Card (conditionally rendered) */}
       {selectedEvent && (
-        <Card className="mt-6 border-blue-200">
-          <CardHeader className="bg-blue-50">
+        <Card className="mt-6 border-grey-200 rounded-md">
+          <CardHeader className="bg-blue-800">
             <div className="flex justify-between">
               <CardTitle>{selectedEvent.title}</CardTitle>
               <Button variant="ghost" size="sm" onClick={closeEventDetails}>

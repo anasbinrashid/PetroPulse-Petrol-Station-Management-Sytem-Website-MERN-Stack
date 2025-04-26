@@ -20,6 +20,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import { api } from "@/services/api";
 
 interface PayrollEntry {
   _id: string;
@@ -79,36 +80,76 @@ export default function EmployeePayroll() {
     try {
       setLoading(true);
       
-      // Get authentication token and email from localStorage
+      // Get authentication token from localStorage
       const token = localStorage.getItem('token');
-      const email = localStorage.getItem('userEmail');
       
       if (!token) {
         toast.error('Authentication required. Please log in again.');
         return;
       }
       
-      if (!email) {
-        toast.error('User information missing. Please log in again.');
-        return;
-      }
+      console.log('[DEBUG][Payroll] Making API request with token:', token ? 'Token exists' : 'No token');
+      console.log('[DEBUG][Payroll] Year parameter:', selectedYear);
       
-      const response = await axios.get('/api/employee/payroll', {
-        headers: {
-          Authorization: `Bearer ${token}`
-        },
-        params: {
-          email: email, // Add email as a query parameter
-          year: selectedYear
+      const response = await api.employee.getPayroll(selectedYear);
+      
+      console.log('[DEBUG][Payroll] API Response:', response);
+      
+      if (response.success) {
+        const transformedPayrolls = response.data.payrolls.map((payroll: any) => ({
+          _id: payroll._id,
+          employeeId: payroll.employeeId,
+          payPeriod: payroll.payPeriod.startDate,
+          startDate: payroll.payPeriod.startDate,
+          endDate: payroll.payPeriod.endDate,
+          basePay: payroll.earnings.regularPay,
+          overtimePay: payroll.earnings.overtimePay,
+          bonus: payroll.earnings.bonuses || 0,
+          deductions: {
+            tax: payroll.deductions.taxes.federal + 
+                 payroll.deductions.taxes.state + 
+                 (payroll.deductions.taxes.local || 0) + 
+                 payroll.deductions.taxes.fica + 
+                 payroll.deductions.taxes.medicare,
+            insurance: (payroll.deductions.benefits?.healthInsurance || 0) + 
+                      (payroll.deductions.benefits?.dentalInsurance || 0) + 
+                      (payroll.deductions.benefits?.visionInsurance || 0),
+            retirement: payroll.deductions.benefits?.retirement401k || 0,
+            other: payroll.deductions.otherDeductions?.reduce((sum: number, item: any) => sum + item.amount, 0) || 0
+          },
+          netPay: payroll.netPay,
+          paymentDate: payroll.paymentDetails?.paymentDate,
+          paymentMethod: payroll.paymentDetails?.paymentMethod,
+          status: payroll.status,
+          hoursWorked: payroll.earnings.regularHours,
+          overtimeHours: payroll.earnings.overtimeHours
+        }));
+        
+        setPayrollRecords(transformedPayrolls);
+        
+        // Transform summary data
+        if (response.data.ytdTotals) {
+          setPayrollSummary({
+            yearToDate: {
+              grossPay: response.data.ytdTotals.grossPay,
+              netPay: response.data.ytdTotals.netPay,
+              tax: response.data.ytdTotals.taxes,
+              insurance: 0, // Need to calculate from benefits
+              retirement: 0 // Need to calculate from benefits
+            },
+            recentPayments: transformedPayrolls.length,
+            upcomingPayment: transformedPayrolls.length > 0 ? {
+              date: transformedPayrolls[0].paymentDate,
+              amount: transformedPayrolls[0].netPay
+            } : undefined
+          });
         }
-      });
-      
-      if (response.data.success) {
-        setPayrollRecords(response.data.payrolls || []);
-        setPayrollSummary(response.data.summary || null);
       }
     } catch (error: any) {
-      console.error('Error fetching payroll data:', error);
+      console.error('[DEBUG][Payroll] Error:', error);
+      if (error.response) {
+        console.error('[DEBUG][Payroll] Error Response:', error.response.data);
+      }
       if (error.response && error.response.status === 401) {
         toast.error('Session expired. Please log in again.');
       } else {
@@ -180,6 +221,23 @@ export default function EmployeePayroll() {
         <div className="text-center">
           <Loader2 className="h-12 w-12 animate-spin text-primary mx-auto" />
           <p className="mt-3 text-muted-foreground">Loading payroll data...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!loading && !payrollRecords.length) {
+    return (
+      <div className="flex flex-col items-center justify-center h-[calc(100vh-100px)]">
+        <div className="text-center space-y-4">
+          <DollarSign className="h-12 w-12 text-muted-foreground mx-auto" />
+          <h2 className="text-2xl font-semibold">No Payroll Data Available</h2>
+          <p className="text-muted-foreground">
+            No payroll records found for the selected year.
+          </p>
+          <Button onClick={fetchPayrollData} variant="outline">
+            Try Again
+          </Button>
         </div>
       </div>
     );

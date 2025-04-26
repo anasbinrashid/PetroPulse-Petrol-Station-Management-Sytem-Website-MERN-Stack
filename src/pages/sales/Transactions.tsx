@@ -1,5 +1,4 @@
-
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { 
   Search, 
   Download, 
@@ -8,7 +7,8 @@ import {
   CheckCircle, 
   XCircle, 
   AlertCircle,
-  ShoppingCart 
+  ShoppingCart,
+  Loader2
 } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -22,115 +22,34 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { DatePickerWithRange } from "@/components/DatePickerWithRange";
 import { DateRange } from "react-day-picker";
-import { addDays } from "date-fns";
+import { addDays, format, parseISO } from "date-fns";
 import { Badge } from "@/components/ui/badge";
+import { toast } from "@/components/ui/use-toast";
+import { api } from "@/services/api";
 
-// Mock data for sales transactions
-const salesData = [
-  { 
-    id: "tx1", 
-    date: "2023-07-01 10:30:25", 
-    type: "Fuel", 
-    product: "Regular Unleaded", 
-    quantity: 12.5, 
-    unitPrice: 3.45, 
-    amount: 43.13, 
-    paymentMethod: "Credit Card", 
-    employee: "John Smith",
-    pumpNumber: 2,
-    status: "Completed"
-  },
-  { 
-    id: "tx2", 
-    date: "2023-07-01 11:45:10", 
-    type: "Fuel", 
-    product: "Diesel", 
-    quantity: 18.8, 
-    unitPrice: 3.75, 
-    amount: 70.50, 
-    paymentMethod: "Cash", 
-    employee: "Mary Johnson",
-    pumpNumber: 4,
-    status: "Completed"
-  },
-  { 
-    id: "tx3", 
-    date: "2023-07-01 12:15:30", 
-    type: "Store", 
-    product: "Snacks", 
-    quantity: 3, 
-    unitPrice: 2.50, 
-    amount: 7.50, 
-    paymentMethod: "Debit Card", 
-    employee: "John Smith",
-    status: "Completed"
-  },
-  { 
-    id: "tx4", 
-    date: "2023-07-01 14:30:45", 
-    type: "Fuel", 
-    product: "Premium Unleaded", 
-    quantity: 15.2, 
-    unitPrice: 3.95, 
-    amount: 60.04, 
-    paymentMethod: "Credit Card", 
-    employee: "Sarah Williams",
-    pumpNumber: 1,
-    status: "Completed"
-  },
-  { 
-    id: "tx5", 
-    date: "2023-07-01 15:50:20", 
-    type: "Store", 
-    product: "Cigarettes", 
-    quantity: 1, 
-    unitPrice: 8.50, 
-    amount: 8.50, 
-    paymentMethod: "Cash", 
-    employee: "Mary Johnson",
-    status: "Completed"
-  },
-  { 
-    id: "tx6", 
-    date: "2023-07-02 09:15:05", 
-    type: "Fuel", 
-    product: "Regular Unleaded", 
-    quantity: 10.8, 
-    unitPrice: 3.45, 
-    amount: 37.26, 
-    paymentMethod: "Fleet Card", 
-    employee: "Sarah Williams",
-    pumpNumber: 3,
-    status: "Completed"
-  },
-  { 
-    id: "tx7", 
-    date: "2023-07-02 10:25:35", 
-    type: "Store", 
-    product: "Coffee", 
-    quantity: 2, 
-    unitPrice: 2.25, 
-    amount: 4.50, 
-    paymentMethod: "Debit Card", 
-    employee: "John Smith",
-    status: "Voided",
-    voidReason: "Customer changed mind"
-  },
-  { 
-    id: "tx8", 
-    date: "2023-07-02 12:40:50", 
-    type: "Fuel", 
-    product: "Diesel", 
-    quantity: 22.5, 
-    unitPrice: 3.75, 
-    amount: 84.38, 
-    paymentMethod: "Credit Card", 
-    employee: "Mary Johnson",
-    pumpNumber: 4,
-    status: "Disputed",
-    disputeReason: "Card charged twice"
-  },
-];
+// Define Transaction interface
+interface Transaction {
+  _id: string;
+  transactionType: 'fuel' | 'product' | 'service';
+  customerId?: string;
+  employeeId?: string;
+  date: string;
+  items: Array<{
+    itemType: 'fuel' | 'product';
+    itemId?: string;
+    quantity: number;
+    unitPrice: number;
+    total: number;
+  }>;
+  subtotal: number;
+  tax: number;
+  total: number;
+  paymentMethod: string;
+  paymentStatus: 'paid' | 'pending' | 'failed';
+  loyaltyPointsEarned?: number;
+  loyaltyPointsRedeemed?: number;
+  notes?: string;
+}
 
 export default function Transactions() {
   const [searchQuery, setSearchQuery] = useState("");
@@ -139,35 +58,78 @@ export default function Transactions() {
     from: addDays(new Date(), -7),
     to: new Date(),
   });
+  const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  // Fetch transactions data
+  useEffect(() => {
+    const fetchTransactions = async () => {
+      setLoading(true);
+      try {
+        // Prepare date params if available
+        let params = {};
+        if (dateRange?.from && dateRange?.to) {
+          params = {
+            startDate: dateRange.from.toISOString(),
+            endDate: dateRange.to.toISOString()
+          };
+        }
+
+        const response = await api.sales.getAll();
+        
+        if (response.success && response.data) {
+          setTransactions(response.data);
+        } else {
+          toast({
+            title: "Error",
+            description: "Failed to fetch transactions data",
+            variant: "destructive"
+          });
+        }
+      } catch (error) {
+        console.error('Error fetching transactions:', error);
+        toast({
+          title: "Error",
+          description: "An error occurred while loading transactions",
+          variant: "destructive"
+        });
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchTransactions();
+  }, [dateRange]);
+
+  // Format date for display
+  const formatDate = (dateString: string) => {
+    try {
+      return format(parseISO(dateString), "yyyy-MM-dd HH:mm:ss");
+    } catch (e) {
+      return dateString;
+    }
+  };
 
   // Filter transactions based on search query, type, and date
-  const filteredSales = salesData.filter((sale) => {
-    // Check search query
-    const matchesSearch = sale.product.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      sale.type.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      sale.paymentMethod.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      sale.employee.toLowerCase().includes(searchQuery.toLowerCase());
+  const filteredTransactions = transactions.filter((transaction) => {
+    // Check search query (search in payment method and transaction type)
+    const matchesSearch = transaction.paymentMethod.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      transaction.transactionType.toLowerCase().includes(searchQuery.toLowerCase());
     
     // Check transaction type
-    const matchesType = transactionType === null || sale.type === transactionType;
+    const matchesType = transactionType === null || transaction.transactionType === transactionType;
     
-    // Check date range
-    const saleDate = new Date(sale.date);
-    const matchesDateRange = 
-      (!dateRange?.from || saleDate >= dateRange.from) && 
-      (!dateRange?.to || saleDate <= dateRange.to);
-    
-    return matchesSearch && matchesType && matchesDateRange;
+    return matchesSearch && matchesType;
   });
 
   // Calculate summary statistics
-  const totalSales = filteredSales.filter(sale => sale.status === "Completed").reduce((sum, sale) => sum + sale.amount, 0);
-  const fuelSales = filteredSales
-    .filter(sale => sale.type === "Fuel" && sale.status === "Completed")
-    .reduce((sum, sale) => sum + sale.amount, 0);
-  const storeSales = filteredSales
-    .filter(sale => sale.type === "Store" && sale.status === "Completed")
-    .reduce((sum, sale) => sum + sale.amount, 0);
+  const totalSales = filteredTransactions.filter(tx => tx.paymentStatus === "paid").reduce((sum, tx) => sum + tx.total, 0);
+  const fuelSales = filteredTransactions
+    .filter(tx => tx.transactionType === "fuel" && tx.paymentStatus === "paid")
+    .reduce((sum, tx) => sum + tx.total, 0);
+  const productSales = filteredTransactions
+    .filter(tx => tx.transactionType === "product" && tx.paymentStatus === "paid")
+    .reduce((sum, tx) => sum + tx.total, 0);
 
   return (
     <div className="space-y-6 animate-fade-in">
@@ -200,11 +162,11 @@ export default function Transactions() {
         </Card>
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium">Store Sales</CardTitle>
+            <CardTitle className="text-sm font-medium">Product Sales</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">${storeSales.toFixed(2)}</div>
-            <p className="text-xs text-muted-foreground">{totalSales ? ((storeSales / totalSales) * 100).toFixed(1) : "0"}% of total</p>
+            <div className="text-2xl font-bold">${productSales.toFixed(2)}</div>
+            <p className="text-xs text-muted-foreground">{totalSales ? ((productSales / totalSales) * 100).toFixed(1) : "0"}% of total</p>
           </CardContent>
         </Card>
       </div>
@@ -226,13 +188,14 @@ export default function Transactions() {
             <DropdownMenuTrigger asChild>
               <Button variant="outline" className="shrink-0">
                 <Filter className="mr-2 h-4 w-4" />
-                {transactionType || "All Types"}
+                {transactionType ? `Type: ${transactionType.charAt(0).toUpperCase() + transactionType.slice(1)}` : "All Types"}
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
               <DropdownMenuItem onClick={() => setTransactionType(null)}>All Transactions</DropdownMenuItem>
-              <DropdownMenuItem onClick={() => setTransactionType("Fuel")}>Fuel Only</DropdownMenuItem>
-              <DropdownMenuItem onClick={() => setTransactionType("Store")}>Store Only</DropdownMenuItem>
+              <DropdownMenuItem onClick={() => setTransactionType("fuel")}>Fuel Only</DropdownMenuItem>
+              <DropdownMenuItem onClick={() => setTransactionType("product")}>Product Only</DropdownMenuItem>
+              <DropdownMenuItem onClick={() => setTransactionType("service")}>Service Only</DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
         </div>
@@ -249,45 +212,70 @@ export default function Transactions() {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Date & Time</TableHead>
+                <TableHead>Transaction ID</TableHead>
+                <TableHead>Date</TableHead>
                 <TableHead>Type</TableHead>
-                <TableHead>Product</TableHead>
-                <TableHead>Quantity</TableHead>
+                <TableHead>Items</TableHead>
                 <TableHead>Amount</TableHead>
-                <TableHead>Payment</TableHead>
+                <TableHead>Payment Method</TableHead>
                 <TableHead>Status</TableHead>
-                <TableHead>Employee</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filteredSales.map((sale) => (
-                <TableRow key={sale.id}>
-                  <TableCell>{new Date(sale.date).toLocaleString()}</TableCell>
-                  <TableCell>{sale.type}</TableCell>
-                  <TableCell>{sale.product}</TableCell>
-                  <TableCell>
-                    {sale.quantity} {sale.type === "Fuel" ? "L" : "units"}
-                    {sale.pumpNumber && <span className="ml-1 text-xs text-muted-foreground">(Pump {sale.pumpNumber})</span>}
+              {loading ? (
+                <TableRow>
+                  <TableCell colSpan={7} className="h-24 text-center">
+                    <div className="flex items-center justify-center">
+                      <Loader2 className="h-6 w-6 animate-spin mr-2" />
+                      <span>Loading transactions...</span>
+                    </div>
                   </TableCell>
-                  <TableCell>${sale.amount.toFixed(2)}</TableCell>
-                  <TableCell>{sale.paymentMethod}</TableCell>
-                  <TableCell>
-                    <Badge 
-                      variant={
-                        sale.status === "Completed" ? "default" :
-                        sale.status === "Voided" ? "destructive" : "outline"
-                      }
-                      className="flex items-center gap-1"
-                    >
-                      {sale.status === "Completed" ? <CheckCircle className="h-3 w-3" /> :
-                       sale.status === "Voided" ? <XCircle className="h-3 w-3" /> :
-                       <AlertCircle className="h-3 w-3" />}
-                      {sale.status}
-                    </Badge>
-                  </TableCell>
-                  <TableCell>{sale.employee}</TableCell>
                 </TableRow>
-              ))}
+              ) : filteredTransactions.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={7} className="h-24 text-center">
+                    No transactions found
+                  </TableCell>
+                </TableRow>
+              ) : (
+                filteredTransactions.map((transaction) => (
+                  <TableRow key={transaction._id}>
+                    <TableCell className="font-medium">{transaction._id.substring(0, 8)}</TableCell>
+                    <TableCell>{formatDate(transaction.date)}</TableCell>
+                    <TableCell>
+                      <Badge variant="outline">
+                        {transaction.transactionType.charAt(0).toUpperCase() + transaction.transactionType.slice(1)}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>
+                      {transaction.items.length === 1 
+                        ? `${transaction.items[0].quantity} x $${transaction.items[0].unitPrice.toFixed(2)}`
+                        : `${transaction.items.length} items`
+                      }
+                    </TableCell>
+                    <TableCell>${transaction.total.toFixed(2)}</TableCell>
+                    <TableCell>{transaction.paymentMethod}</TableCell>
+                    <TableCell>
+                      {transaction.paymentStatus === "paid" ? (
+                        <Badge variant="default" className="bg-green-500">
+                          <CheckCircle className="mr-1 h-3 w-3" />
+                          Paid
+                        </Badge>
+                      ) : transaction.paymentStatus === "pending" ? (
+                        <Badge variant="default" className="bg-yellow-500">
+                          <AlertCircle className="mr-1 h-3 w-3" />
+                          Pending
+                        </Badge>
+                      ) : (
+                        <Badge variant="default" className="bg-red-500">
+                          <XCircle className="mr-1 h-3 w-3" />
+                          Failed
+                        </Badge>
+                      )}
+                    </TableCell>
+                  </TableRow>
+                ))
+              )}
             </TableBody>
           </Table>
         </CardContent>

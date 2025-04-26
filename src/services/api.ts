@@ -194,14 +194,7 @@ export const api = {
       method: 'POST',
       body: JSON.stringify({ location }),
     }),
-    getPayroll: (year?: number, month?: number) => {
-      const queryParams = new URLSearchParams();
-      if (year) queryParams.append("year", year.toString());
-      if (month) queryParams.append("month", month.toString());
-      
-      const queryString = queryParams.toString() ? `?${queryParams.toString()}` : "";
-      return fetchApi(`/employee/payroll${queryString}`);
-    },
+    getPayroll: (year?: string) => fetchApi(`/employee/payroll${year ? `?year=${year}` : ''}`),
     updatePassword: (currentPassword: string, newPassword: string) => fetchApi('/employee/update-password', {
       method: 'PUT',
       body: JSON.stringify({ currentPassword, newPassword }),

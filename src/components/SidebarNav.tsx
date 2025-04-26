@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { cn } from "@/lib/utils";
@@ -46,7 +45,6 @@ const navItems: NavItem[] = [
     icon: ShoppingCart,
     submenu: [
       { title: "Transactions", href: "/sales/transactions" },
-      { title: "Reports", href: "/sales/reports" },
     ],
   },
   {
@@ -99,7 +97,7 @@ export function SidebarNav() {
   return (
     <div className="flex h-full w-full flex-col gap-2">
       <div className="flex items-center gap-2 px-4 py-2">
-        <GaugeCircle size={24} className="text-primary" />
+        <img src="/logo.png" alt="PetroPulse Logo" className="h-6" />
         <span className="text-xl font-bold">PetroPulse</span>
       </div>
       <div className="flex-1 overflow-auto py-2">

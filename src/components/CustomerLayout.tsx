@@ -1,4 +1,3 @@
-
 import { ReactNode, useState, useEffect } from "react";
 import { Navigate, Outlet, Link, useLocation, useNavigate } from "react-router-dom";
 import { GaugeCircle, Home, User, FileText, Fuel, CreditCard, LogOut, Menu } from "lucide-react";
@@ -89,8 +88,8 @@ export function CustomerLayout() {
       {/* Sidebar - hidden on mobile */}
       <aside className="hidden w-64 border-r bg-card md:block">
         <div className="flex h-full w-full flex-col gap-2">
-          <div className="flex items-center gap-2 px-4 py-2">
-            <GaugeCircle size={24} className="text-primary" />
+          <div className="flex items-center gap-2 p-4">
+            <img src="/logo.png" alt="PetroPulse Logo" className="h-6" />
             <span className="text-xl font-bold">PetroPulse</span>
           </div>
           
@@ -135,8 +134,8 @@ export function CustomerLayout() {
             </SheetTrigger>
             <SheetContent side="left" className="w-64 p-0">
               <div className="flex h-full w-full flex-col gap-2">
-                <div className="flex items-center gap-2 px-4 py-6">
-                  <GaugeCircle size={24} className="text-primary" />
+                <div className="flex items-center gap-2 p-4">
+                  <img src="/logo.png" alt="PetroPulse Logo" className="h-6" />
                   <span className="text-xl font-bold">PetroPulse</span>
                 </div>
                 
