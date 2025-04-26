@@ -56,7 +56,7 @@ export default function Employees() {
       
       // Access the employees collection directly from the employee database
       // Still using admin authentication
-      const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:5000/api'}/admin/employee-db/profiles${department ? `?department=${department}` : ''}`, {
+      const response = await fetch(`${import.meta.env.VITE_API_URL || '/api'}/admin/employee-db/profiles${department ? `?department=${department}` : ''}`, {
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('token')}`,
           'Content-Type': 'application/json',
@@ -98,7 +98,7 @@ export default function Employees() {
   // Handle employee status update
   const handleUpdateStatus = async (employeeId: string, newStatus: string) => {
     try {
-      const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:5000/api'}/admin/employees/${employeeId}/status`, {
+      const response = await fetch(`${import.meta.env.VITE_API_URL || '/api'}/admin/employees/${employeeId}/status`, {
         method: 'PATCH',
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('token')}`,
@@ -135,7 +135,7 @@ export default function Employees() {
   // Handle employee deletion
   const handleDeleteEmployee = async (employeeId: string) => {
     try {
-      const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:5000/api'}/admin/employees/${employeeId}`, {
+      const response = await fetch(`${import.meta.env.VITE_API_URL || '/api'}/admin/employees/${employeeId}`, {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('token')}`,

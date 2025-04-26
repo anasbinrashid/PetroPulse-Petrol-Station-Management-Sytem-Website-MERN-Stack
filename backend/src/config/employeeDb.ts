@@ -8,8 +8,8 @@ const connectEmployeeDB = async (): Promise<mongoose.Connection> => {
   try {
     console.log(`[DEBUG][EmployeeDB] Original MONGODB_URI: ${process.env.MONGODB_URI ? 'Present' : 'Missing'}`);
     
-    // Use a different database name but same server
-    const EMPLOYEE_DB_URI = process.env.MONGODB_URI?.replace(
+    // Use a dedicated employee database URI if available, otherwise modify the main URI
+    const EMPLOYEE_DB_URI = process.env.MONGODB_EMPLOYEE_URI || process.env.MONGODB_URI?.replace(
       /\/[^/]+(\?|$)/, 
       '/petropulse-employees$1'
     ) || '';

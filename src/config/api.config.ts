@@ -1,12 +1,11 @@
-
 /**
  * Configuration for API endpoints and services
  */
 
 // Base API URL - change based on environment
 export const API_CONFIG = {
-  // Base URL for the backend API
-  BASE_URL: 'http://localhost:5000/api',
+  // Base URL for the backend API - using relative URL
+  BASE_URL: '/api',
   
   // API timeout in milliseconds
   TIMEOUT: 30000,
@@ -27,8 +26,8 @@ export const getApiConfig = () => {
   if (process.env.NODE_ENV === 'production') {
     return {
       ...API_CONFIG,
-      // Use production API URL in real deployment
-      BASE_URL: 'https://api.your-production-domain.com/api',
+      // Use relative URL so it works when frontend/backend are deployed together
+      BASE_URL: '/api',
     };
   }
   

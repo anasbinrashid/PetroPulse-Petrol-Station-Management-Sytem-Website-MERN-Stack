@@ -8,8 +8,8 @@ const connectCustomerDB = async (): Promise<mongoose.Connection> => {
   try {
     console.log(`[DEBUG][CustomerDB] Original MONGODB_URI: ${process.env.MONGODB_URI ? 'Present' : 'Missing'}`);
     
-    // Use a different database name but same server
-    const CUSTOMER_DB_URI = process.env.MONGODB_URI?.replace(
+    // Use a dedicated customer database URI if available, otherwise modify the main URI
+    const CUSTOMER_DB_URI = process.env.MONGODB_CUSTOMER_URI || process.env.MONGODB_URI?.replace(
       /\/[^/]+(\?|$)/, 
       '/petropulse-customers$1'
     ) || '';

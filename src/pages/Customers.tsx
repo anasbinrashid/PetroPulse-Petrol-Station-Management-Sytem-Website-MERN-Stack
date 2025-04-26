@@ -57,7 +57,7 @@ export default function Customers() {
       
       // Access the customers collection directly from the customer database
       // Still using admin authentication
-      const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:5000/api'}/admin/customer-db/profiles${statusFilter ? `?status=${statusFilter}` : ''}`, {
+      const response = await fetch(`${import.meta.env.VITE_API_URL || '/api'}/admin/customer-db/profiles${statusFilter ? `?status=${statusFilter}` : ''}`, {
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('token')}`,
           'Content-Type': 'application/json',
@@ -99,7 +99,7 @@ export default function Customers() {
   // Handle customer status update
   const handleUpdateStatus = async (customerId: string, newStatus: string) => {
     try {
-      const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:5000/api'}/admin/customers/${customerId}/status`, {
+      const response = await fetch(`${import.meta.env.VITE_API_URL || '/api'}/admin/customers/${customerId}/status`, {
         method: 'PATCH',
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('token')}`,
@@ -136,7 +136,7 @@ export default function Customers() {
   // Handle customer deletion
   const handleDeleteCustomer = async (customerId: string) => {
     try {
-      const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:5000/api'}/admin/customers/${customerId}`, {
+      const response = await fetch(`${import.meta.env.VITE_API_URL || '/api'}/admin/customers/${customerId}`, {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('token')}`,
@@ -186,7 +186,7 @@ export default function Customers() {
   // Update loyalty points
   const handleUpdateLoyaltyPoints = async (customerId: string, operation: string, amount: number) => {
     try {
-      const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:5000/api'}/admin/customers/${customerId}/loyalty`, {
+      const response = await fetch(`${import.meta.env.VITE_API_URL || '/api'}/admin/customers/${customerId}/loyalty`, {
         method: 'PATCH',
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('token')}`,

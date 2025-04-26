@@ -1,8 +1,8 @@
 import { ApiResponse } from '../types/api';
 import { toast } from 'sonner';
 
-// Base API URL - hardcoded for browser environment
-const API_BASE_URL = 'http://localhost:5000/api';
+// Base API URL - use relative URL which works when frontend/backend are deployed together
+const API_BASE_URL = '/api';
 
 // Check if token exists in localStorage
 const getToken = () => localStorage.getItem('token');
