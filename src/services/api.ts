@@ -406,6 +406,42 @@ export const api = {
     },
   },
   
+  // Employee Database
+  employeeDb: {
+    getAll: async (params?: { department?: string; status?: string; search?: string }) => {
+      const queryParams = new URLSearchParams();
+      if (params?.department) queryParams.append("department", params.department);
+      if (params?.status) queryParams.append("status", params.status);
+      if (params?.search) queryParams.append("search", params.search);
+      
+      const queryString = queryParams.toString() ? `?${queryParams.toString()}` : "";
+      return fetchApi(`/admin/employee-db/profiles${queryString}`, {
+        headers: {
+          "Cache-Control": "no-cache, no-store, must-revalidate",
+          "Pragma": "no-cache",
+          "Expires": "0",
+        }
+      });
+    },
+    create: async (data: any) => {
+      return fetchApi("/admin/employee-db/create", {
+        method: "POST",
+        body: JSON.stringify(data),
+      });
+    },
+    update: async (id: string, data: any) => {
+      return fetchApi(`/admin/employee-db/update/${id}`, {
+        method: "PUT",
+        body: JSON.stringify(data),
+      });
+    },
+    delete: async (id: string) => {
+      return fetchApi(`/admin/employee-db/delete/${id}`, {
+        method: "DELETE",
+      });
+    },
+  },
+  
   // Customers
   customers: {
     getAll: async (params?: { membershipLevel?: string; status?: string; customerType?: string; search?: string }) => {

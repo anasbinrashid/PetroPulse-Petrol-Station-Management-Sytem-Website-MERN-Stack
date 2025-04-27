@@ -811,4 +811,292 @@ export const getCustomerDbProfiles = asyncHandler(async (req: Request, res: Resp
     console.error('[AdminController] Error stack:', error.stack);
     res.status(500).json({ message: 'Error fetching customer profiles', error: error.message });
   }
+});
+
+// @desc    Create a new customer in the customer database
+// @route   POST /api/admin/customer-db/create
+// @access  Private/Admin
+export const createCustomerInDb = asyncHandler(async (req: Request, res: Response): Promise<void> => {
+  try {
+    console.log('[AdminController] Creating customer in customer database:', req.body);
+    
+    // Get the Customer model from the customer database
+    const CustomerModel = await initCustomerModel();
+    
+    // Check if required fields are provided
+    const { firstName, lastName, email, password } = req.body;
+    if (!firstName || !lastName) {
+      res.status(400).json({ message: 'First name and last name are required' });
+      return;
+    }
+    
+    // Check if customer with this email already exists (if email is provided)
+    if (email) {
+      const existingCustomer = await CustomerModel.findOne({ email });
+      if (existingCustomer) {
+        res.status(400).json({ message: 'Customer with this email already exists' });
+        return;
+      }
+    }
+    
+    // Create new customer
+    const newCustomer = await CustomerModel.create({
+      ...req.body,
+      memberSince: new Date(),
+      createdAt: new Date(),
+      updatedAt: new Date()
+    });
+    
+    console.log(`[AdminController] Created new customer with ID: ${newCustomer._id}`);
+    res.status(201).json(newCustomer);
+  } catch (error: any) {
+    console.error('[AdminController] Error creating customer in DB:', error.message);
+    res.status(500).json({ message: 'Error creating customer', error: error.message });
+  }
+});
+
+// @desc    Update an existing customer in the customer database
+// @route   PUT /api/admin/customer-db/update/:id
+// @access  Private/Admin
+export const updateCustomerInDb = asyncHandler(async (req: Request, res: Response): Promise<void> => {
+  try {
+    console.log(`[AdminController] Updating customer with ID: ${req.params.id} in customer database`);
+    
+    // Get the Customer model from the customer database
+    const CustomerModel = await initCustomerModel();
+    
+    // Find the customer
+    const customer = await CustomerModel.findById(req.params.id);
+    if (!customer) {
+      res.status(404).json({ message: 'Customer not found in the database' });
+      return;
+    }
+    
+    // Update customer fields - only update fields that are provided
+    const updatableFields = [
+      'firstName', 'lastName', 'email', 'phone', 'status', 'loyaltyPoints',
+      'vehicle', 'address', 'lastVisit', 'notes', 'customerType', 'membershipLevel'
+    ];
+    
+    updatableFields.forEach(field => {
+      if (req.body[field] !== undefined) {
+        (customer as any)[field] = req.body[field];
+      }
+    });
+    
+    // Always update the updatedAt field
+    customer.updatedAt = new Date();
+    
+    // Save the updated customer
+    const updatedCustomer = await customer.save();
+    
+    console.log(`[AdminController] Updated customer: ${updatedCustomer.firstName} ${updatedCustomer.lastName}`);
+    res.json(updatedCustomer);
+  } catch (error: any) {
+    console.error('[AdminController] Error updating customer in DB:', error.message);
+    res.status(500).json({ message: 'Error updating customer', error: error.message });
+  }
+});
+
+// @desc    Delete a customer from the customer database
+// @route   DELETE /api/admin/customer-db/delete/:id
+// @access  Private/Admin
+export const deleteCustomerInDb = asyncHandler(async (req: Request, res: Response): Promise<void> => {
+  try {
+    console.log(`[AdminController] Deleting customer with ID: ${req.params.id} from customer database`);
+    
+    // Get the Customer model from the customer database
+    const CustomerModel = await initCustomerModel();
+    
+    // Find and delete the customer
+    const deletedCustomer = await CustomerModel.findByIdAndDelete(req.params.id);
+    
+    if (!deletedCustomer) {
+      res.status(404).json({ message: 'Customer not found in the database' });
+      return;
+    }
+    
+    console.log(`[AdminController] Deleted customer: ${deletedCustomer.firstName} ${deletedCustomer.lastName}`);
+    res.json({ message: 'Customer deleted successfully', customerId: deletedCustomer._id });
+  } catch (error: any) {
+    console.error('[AdminController] Error deleting customer from DB:', error.message);
+    res.status(500).json({ message: 'Error deleting customer', error: error.message });
+  }
+});
+
+// @desc    Update customer status in the customer database
+// @route   PATCH /api/admin/customer-db/update-status/:id
+// @access  Private/Admin
+export const updateCustomerStatusInDb = asyncHandler(async (req: Request, res: Response): Promise<void> => {
+  try {
+    console.log(`[AdminController] Updating status for customer ID: ${req.params.id} in customer database`);
+    
+    const { status } = req.body;
+    if (!status) {
+      res.status(400).json({ message: 'Status is required' });
+      return;
+    }
+    
+    // Validate status value
+    const validStatuses = ['new', 'regular', 'premium'];
+    if (!validStatuses.includes(status)) {
+      res.status(400).json({ message: 'Invalid status value. Must be one of: ' + validStatuses.join(', ') });
+      return;
+    }
+    
+    // Get the Customer model from the customer database
+    const CustomerModel = await initCustomerModel();
+    
+    // Find and update the customer
+    const updatedCustomer = await CustomerModel.findByIdAndUpdate(
+      req.params.id,
+      { status, updatedAt: new Date() },
+      { new: true }
+    );
+    
+    if (!updatedCustomer) {
+      res.status(404).json({ message: 'Customer not found in the database' });
+      return;
+    }
+    
+    console.log(`[AdminController] Updated status to '${status}' for customer: ${updatedCustomer.firstName} ${updatedCustomer.lastName}`);
+    res.json(updatedCustomer);
+  } catch (error: any) {
+    console.error('[AdminController] Error updating customer status in DB:', error.message);
+    res.status(500).json({ message: 'Error updating customer status', error: error.message });
+  }
+});
+
+// @desc    Update customer loyalty points in the customer database
+// @route   PATCH /api/admin/customer-db/update-loyalty/:id
+// @access  Private/Admin
+export const updateCustomerLoyaltyInDb = asyncHandler(async (req: Request, res: Response): Promise<void> => {
+  try {
+    console.log(`[AdminController] Updating loyalty points for customer ID: ${req.params.id} in customer database`);
+    
+    const { points, operation } = req.body;
+    if (points === undefined || !operation) {
+      res.status(400).json({ message: 'Points and operation are required' });
+      return;
+    }
+    
+    // Validate operation value
+    const validOperations = ['add', 'subtract', 'set'];
+    if (!validOperations.includes(operation)) {
+      res.status(400).json({ message: 'Invalid operation. Must be one of: ' + validOperations.join(', ') });
+      return;
+    }
+    
+    // Get the Customer model from the customer database
+    const CustomerModel = await initCustomerModel();
+    
+    // Find the customer
+    const customer = await CustomerModel.findById(req.params.id);
+    if (!customer) {
+      res.status(404).json({ message: 'Customer not found in the database' });
+      return;
+    }
+    
+    // Update loyalty points based on operation
+    let newPoints = customer.loyaltyPoints;
+    if (operation === 'add') {
+      newPoints += points;
+    } else if (operation === 'subtract') {
+      newPoints = Math.max(0, newPoints - points); // Don't go below zero
+    } else if (operation === 'set') {
+      newPoints = Math.max(0, points); // Don't set below zero
+    }
+    
+    // Update the customer
+    customer.loyaltyPoints = newPoints;
+    customer.updatedAt = new Date();
+    const updatedCustomer = await customer.save();
+    
+    console.log(`[AdminController] Updated loyalty points to ${newPoints} for customer: ${updatedCustomer.firstName} ${updatedCustomer.lastName}`);
+    res.json(updatedCustomer);
+  } catch (error: any) {
+    console.error('[AdminController] Error updating customer loyalty points in DB:', error.message);
+    res.status(500).json({ message: 'Error updating customer loyalty points', error: error.message });
+  }
+});
+
+// @desc    Create a new employee in the employee database
+// @route   POST /api/admin/employee-db/create
+export const createEmployeeInDb = asyncHandler(async (req: Request, res: Response): Promise<void> => {
+  try {
+    console.log('[AdminController] Creating employee in employee database');
+    
+    // Get the Employee model from the database
+    const EmployeeProfile = await EmployeeProfileConnection;
+    
+    // Validate required fields
+    const { firstName, lastName } = req.body;
+    if (!firstName || !lastName) {
+      res.status(400).json({ message: 'First name and last name are required' });
+      return;
+    }
+    
+    // Create new employee
+    const newEmployee = await EmployeeProfile.create({
+      ...req.body,
+      startDate: req.body.startDate || new Date(),
+      createdAt: new Date()
+    });
+    
+    res.status(201).json(newEmployee);
+  } catch (error: any) {
+    console.error('[AdminController] Error creating employee:', error.message);
+    res.status(500).json({ message: 'Error creating employee', error: error.message });
+  }
+});
+
+// @desc    Update an employee in the database
+// @route   PUT /api/admin/employee-db/update/:id
+export const updateEmployeeInDb = asyncHandler(async (req: Request, res: Response): Promise<void> => {
+  try {
+    const EmployeeProfile = await EmployeeProfileConnection;
+    const employee = await EmployeeProfile.findById(req.params.id);
+    
+    if (!employee) {
+      res.status(404).json({ message: 'Employee not found' });
+      return;
+    }
+    
+    // Update fields
+    const updatableFields = [
+      'firstName', 'lastName', 'email', 'phone', 'department', 
+      'position', 'role', 'status', 'shift'
+    ];
+    
+    updatableFields.forEach(field => {
+      if (req.body[field] !== undefined) {
+        (employee as any)[field] = req.body[field];
+      }
+    });
+    
+    const updatedEmployee = await employee.save();
+    res.json(updatedEmployee);
+  } catch (error: any) {
+    console.error('[AdminController] Error updating employee:', error.message);
+    res.status(500).json({ message: 'Error updating employee', error: error.message });
+  }
+});
+
+// @desc    Delete an employee from the database
+// @route   DELETE /api/admin/employee-db/delete/:id
+export const deleteEmployeeInDb = asyncHandler(async (req: Request, res: Response): Promise<void> => {
+  try {
+    const EmployeeProfile = await EmployeeProfileConnection;
+    const deletedEmployee = await EmployeeProfile.findByIdAndDelete(req.params.id);
+    
+    if (!deletedEmployee) {
+      res.status(404).json({ message: 'Employee not found' });
+      return;
+    }
+    
+    res.json({ message: 'Employee deleted successfully', employeeId: deletedEmployee._id });
+  } catch (error: any) {
+    console.error('[AdminController] Error deleting employee:', error.message);
+    res.status(500).json({ message: 'Error deleting employee', error: error.message });
+  }
 }); 

@@ -199,7 +199,7 @@ export function EmployeeForm({ employee, onSuccess, onCancel }: EmployeeFormProp
         if (!formattedData.password) {
           delete formattedData.password;
         }
-        response = await api.employees.update(employee._id, formattedData);
+        response = await api.employeeDb.update(employee._id, formattedData);
       } else {
         // Create new employee - password is required
         if (!formattedData.password) {
@@ -211,7 +211,7 @@ export function EmployeeForm({ employee, onSuccess, onCancel }: EmployeeFormProp
           setIsLoading(false);
           return;
         }
-        response = await api.employees.create(formattedData);
+        response = await api.employeeDb.create(formattedData);
       }
       
       if (response.success) {

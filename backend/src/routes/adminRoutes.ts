@@ -14,6 +14,14 @@ import {
   getSales,
   getEmployeeDbProfiles,
   getCustomerDbProfiles,
+  createCustomerInDb,
+  updateCustomerInDb,
+  deleteCustomerInDb,
+  updateCustomerStatusInDb,
+  updateCustomerLoyaltyInDb,
+  createEmployeeInDb,
+  updateEmployeeInDb,
+  deleteEmployeeInDb,
 } from '../controllers/adminController';
 
 const router = express.Router();
@@ -41,6 +49,18 @@ router.get('/sales', getSales);
 // Direct access to employee and customer databases
 router.get('/employee-db/profiles', getEmployeeDbProfiles);
 router.get('/customer-db/profiles', getCustomerDbProfiles);
+
+// Add CRUD operations for customer database
+router.post('/customer-db/create', createCustomerInDb);
+router.put('/customer-db/update/:id', updateCustomerInDb);
+router.delete('/customer-db/delete/:id', deleteCustomerInDb);
+router.patch('/customer-db/update-status/:id', updateCustomerStatusInDb);
+router.patch('/customer-db/update-loyalty/:id', updateCustomerLoyaltyInDb);
+
+// Add CRUD operations for employee database
+router.post('/employee-db/create', createEmployeeInDb);
+router.put('/employee-db/update/:id', updateEmployeeInDb);
+router.delete('/employee-db/delete/:id', deleteEmployeeInDb);
 
 // Use specialized routers for more complex resources
 router.use('/employees', adminEmployeeRoutes);

@@ -98,8 +98,10 @@ export default function Employees() {
   // Handle employee status update
   const handleUpdateStatus = async (employeeId: string, newStatus: string) => {
     try {
-      const response = await fetch(`${import.meta.env.VITE_API_URL || '/api'}/admin/employees/${employeeId}/status`, {
-        method: 'PATCH',
+      // Since we don't have a specific status update endpoint for employee-db,
+      // we'll use the general update endpoint with just the status field
+      const response = await fetch(`${import.meta.env.VITE_API_URL || '/api'}/admin/employee-db/update/${employeeId}`, {
+        method: 'PUT',
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('token')}`,
           'Content-Type': 'application/json'
@@ -135,7 +137,7 @@ export default function Employees() {
   // Handle employee deletion
   const handleDeleteEmployee = async (employeeId: string) => {
     try {
-      const response = await fetch(`${import.meta.env.VITE_API_URL || '/api'}/admin/employees/${employeeId}`, {
+      const response = await fetch(`${import.meta.env.VITE_API_URL || '/api'}/admin/employee-db/delete/${employeeId}`, {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('token')}`,

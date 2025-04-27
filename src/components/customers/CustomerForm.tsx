@@ -96,24 +96,17 @@ export function CustomerForm({ customer, onSuccess, onCancel }: CustomerFormProp
     try {
       // Format data for API - convert form fields to match backend expectations
       const formattedData = {
-        name: `${values.firstName} ${values.lastName}`.trim(),
+        firstName: values.firstName,
+        lastName: values.lastName,
         email: values.email || '', // Required by backend
         phone: values.phone || '',
         address: values.address || '',
         status: values.status,
-        // Backend expects these formatted exactly right
-        vehicles: [{
-          make: "Unknown",
-          model: values.vehicle || "Not provided",
-          year: new Date().getFullYear(),
-          licensePlate: ""
-        }],
-        // Backend requires this array
-        paymentMethods: [{
-          type: "none",
-          lastFour: "",
-          isDefault: true
-        }]
+        vehicle: values.vehicle || '',
+        customerType: values.customerType || 'individual',
+        membershipLevel: values.membershipLevel || 'basic',
+        loyaltyPoints: values.loyaltyPoints || 0,
+        notes: values.notes || ''
       };
       
       // Only include password for new customers
@@ -125,10 +118,23 @@ export function CustomerForm({ customer, onSuccess, onCancel }: CustomerFormProp
       let response;
       
       if (isEditing && customer?._id) {
-        // Update existing customer
-        response = await api.customers.update(customer._id, formattedData);
+        // Update existing customer in the customer database
+        const token = localStorage.getItem('token');
+        const url = `${import.meta.env.VITE_API_URL || '/api'}/admin/customer-db/update/${customer._id}`;
+        
+        const updateResponse = await fetch(url, {
+          method: 'PUT',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify(formattedData)
+        });
+        
+        const data = await updateResponse.json();
+        response = { success: updateResponse.ok, data, error: data.message };
       } else {
-        // Create new customer - must include password
+        // Create new customer in the customer database
         if (!values.password) {
           toast({
             title: "Error",
@@ -138,7 +144,21 @@ export function CustomerForm({ customer, onSuccess, onCancel }: CustomerFormProp
           setIsLoading(false);
           return;
         }
-        response = await api.customers.create(formattedData);
+        
+        const token = localStorage.getItem('token');
+        const url = `${import.meta.env.VITE_API_URL || '/api'}/admin/customer-db/create`;
+        
+        const createResponse = await fetch(url, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify(formattedData)
+        });
+        
+        const data = await createResponse.json();
+        response = { success: createResponse.ok, data, error: data.message };
       }
       
       if (response.success) {
