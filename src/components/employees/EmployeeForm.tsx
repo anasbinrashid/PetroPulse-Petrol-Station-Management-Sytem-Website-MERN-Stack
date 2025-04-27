@@ -161,6 +161,7 @@ export function EmployeeForm({ employee, onSuccess, onCancel }: EmployeeFormProp
         position: values.position,
         department: values.department,
         employeeId: values.employeeId,
+        mainEmployeeId: values.employeeId,
         hireDate: values.hireDate,
         salary: values.salary,
         status: values.status,
