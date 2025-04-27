@@ -47,7 +47,7 @@ export default function Customers() {
   // Fetch customers data
   const fetchCustomers = async () => {
     setLoading(true);
-    console.log('Fetching customers...');
+    console.log('⏳ Fetching customers...', { statusFilter });
     
     try {
       const params: any = {};
@@ -55,11 +55,17 @@ export default function Customers() {
         params.status = statusFilter;
       }
       
+      const apiUrl = `https://petropulse-api.onrender.com/api/admin/customer-db/profiles${statusFilter ? `?status=${statusFilter}` : ''}`;
+      console.log('🔗 API URL:', apiUrl);
+      
       // Access the customers collection directly from the customer database
       // Still using admin authentication
-      const response = await fetch(`${import.meta.env.VITE_API_URL || '/api'}/admin/customer-db/profiles${statusFilter ? `?status=${statusFilter}` : ''}`, {
+      const token = localStorage.getItem('token');
+      console.log('🔑 Using token:', token ? `${token.substring(0, 15)}...` : 'No token found');
+      
+      const response = await fetch(apiUrl, {
         headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+          'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json',
           'Cache-Control': 'no-cache, no-store, must-revalidate',
           'Pragma': 'no-cache',
@@ -67,13 +73,15 @@ export default function Customers() {
         }
       });
       
+      console.log('📊 Response status:', response.status);
       const data = await response.json();
+      console.log('📦 Response data:', data);
       
       if (response.ok && data) {
-        console.log(`Successfully fetched ${data.length} customers from customer database`);
+        console.log(`✅ Successfully fetched ${data.length} customers from customer database`);
         setCustomers(data);
       } else {
-        console.error('Failed to fetch customers:', data.message || 'Unknown error');
+        console.error('❌ Failed to fetch customers:', data.message || 'Unknown error', data);
         toast({
           title: "Error",
           description: "Failed to load customers data",
@@ -81,7 +89,7 @@ export default function Customers() {
         });
       }
     } catch (error) {
-      console.error('Error fetching customers:', error);
+      console.error('❌ Error fetching customers:', error);
       toast({
         title: "Error",
         description: "An error occurred while loading data",
@@ -98,25 +106,39 @@ export default function Customers() {
 
   // Handle customer status update
   const handleUpdateStatus = async (customerId: string, newStatus: string) => {
+    console.log(`⏳ Updating customer status for ID ${customerId} to ${newStatus}`);
     try {
-      const response = await fetch(`${import.meta.env.VITE_API_URL || '/api'}/admin/customer-db/update-status/${customerId}`, {
+      const apiUrl = `https://petropulse-api.onrender.com/api/admin/customer-db/update-status/${customerId}`;
+      console.log('🔗 API URL:', apiUrl);
+      
+      const payload = { status: newStatus };
+      console.log('📦 Request payload:', payload);
+      
+      const token = localStorage.getItem('token');
+      console.log('🔑 Using token:', token ? `${token.substring(0, 15)}...` : 'No token found');
+      
+      const response = await fetch(apiUrl, {
         method: 'PATCH',
         headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+          'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify({ status: newStatus })
+        body: JSON.stringify(payload)
       });
       
+      console.log('📊 Response status:', response.status);
       const data = await response.json();
+      console.log('📦 Response data:', data);
       
       if (response.ok) {
+        console.log('✅ Customer status updated successfully');
         toast({
           title: "Success",
           description: `Customer status updated to ${newStatus}`
         });
         fetchCustomers();
       } else {
+        console.error('❌ Failed to update customer status:', data.message || "Failed to update customer status", data);
         toast({
           title: "Error",
           description: data.message || "Failed to update customer status",
@@ -124,7 +146,7 @@ export default function Customers() {
         });
       }
     } catch (error) {
-      console.error('Error updating customer status:', error);
+      console.error('❌ Error updating customer status:', error);
       toast({
         title: "Error",
         description: "An error occurred while updating the customer",
@@ -135,24 +157,35 @@ export default function Customers() {
 
   // Handle customer deletion
   const handleDeleteCustomer = async (customerId: string) => {
+    console.log(`⏳ Deleting customer with ID ${customerId}`);
     try {
-      const response = await fetch(`${import.meta.env.VITE_API_URL || '/api'}/admin/customer-db/delete/${customerId}`, {
+      const apiUrl = `https://petropulse-api.onrender.com/api/admin/customer-db/delete/${customerId}`;
+      console.log('🔗 API URL:', apiUrl);
+      
+      const token = localStorage.getItem('token');
+      console.log('🔑 Using token:', token ? `${token.substring(0, 15)}...` : 'No token found');
+      
+      const response = await fetch(apiUrl, {
         method: 'DELETE',
         headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+          'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
         }
       });
       
+      console.log('📊 Response status:', response.status);
       const data = await response.json();
+      console.log('📦 Response data:', data);
       
       if (response.ok) {
+        console.log('✅ Customer deleted successfully');
         toast({
           title: "Success",
           description: "Customer removed successfully"
         });
         fetchCustomers();
       } else {
+        console.error('❌ Failed to delete customer:', data.message || "Failed to delete customer", data);
         toast({
           title: "Error",
           description: data.message || "Failed to delete customer",
@@ -160,7 +193,7 @@ export default function Customers() {
         });
       }
     } catch (error) {
-      console.error('Error deleting customer:', error);
+      console.error('❌ Error deleting customer:', error);
       toast({
         title: "Error",
         description: "An error occurred while removing the customer",
@@ -185,28 +218,42 @@ export default function Customers() {
 
   // Update loyalty points
   const handleUpdateLoyaltyPoints = async (customerId: string, operation: string, amount: number) => {
+    console.log(`⏳ Updating loyalty points for customer ID ${customerId}`, { operation, amount });
     try {
-      const response = await fetch(`${import.meta.env.VITE_API_URL || '/api'}/admin/customer-db/update-loyalty/${customerId}`, {
+      const apiUrl = `https://petropulse-api.onrender.com/api/admin/customer-db/update-loyalty/${customerId}`;
+      console.log('🔗 API URL:', apiUrl);
+      
+      const payload = {
+        points: amount,
+        operation: operation as 'add' | 'subtract' | 'set'
+      };
+      console.log('📦 Request payload:', payload);
+      
+      const token = localStorage.getItem('token');
+      console.log('🔑 Using token:', token ? `${token.substring(0, 15)}...` : 'No token found');
+      
+      const response = await fetch(apiUrl, {
         method: 'PATCH',
         headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+          'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify({
-          points: amount,
-          operation: operation as 'add' | 'subtract' | 'set'
-        })
+        body: JSON.stringify(payload)
       });
       
+      console.log('📊 Response status:', response.status);
       const data = await response.json();
+      console.log('📦 Response data:', data);
       
       if (response.ok) {
+        console.log('✅ Loyalty points updated successfully');
         toast({
           title: "Success",
           description: `Loyalty points ${operation}ed successfully`
         });
         fetchCustomers();
       } else {
+        console.error('❌ Failed to update loyalty points:', data.message || "Failed to update loyalty points", data);
         toast({
           title: "Error",
           description: data.message || "Failed to update loyalty points",
@@ -214,7 +261,7 @@ export default function Customers() {
         });
       }
     } catch (error) {
-      console.error('Error updating loyalty points:', error);
+      console.error('❌ Error updating loyalty points:', error);
       toast({
         title: "Error",
         description: "An error occurred while updating loyalty points",

@@ -46,7 +46,7 @@ export default function Employees() {
   // Fetch employees data
   const fetchEmployees = async () => {
     setLoading(true);
-    console.log('Fetching employees...');
+    console.log('⏳ Fetching employees...', { department });
     
     try {
       const params: any = {};
@@ -54,11 +54,17 @@ export default function Employees() {
         params.department = department;
       }
       
+      const apiUrl = `https://petropulse-api.onrender.com/api/admin/employee-db/profiles${department ? `?department=${department}` : ''}`;
+      console.log('🔗 API URL:', apiUrl);
+      
       // Access the employees collection directly from the employee database
       // Still using admin authentication
-      const response = await fetch(`${import.meta.env.VITE_API_URL || '/api'}/admin/employee-db/profiles${department ? `?department=${department}` : ''}`, {
+      const token = localStorage.getItem('token');
+      console.log('🔑 Using token:', token ? `${token.substring(0, 15)}...` : 'No token found');
+      
+      const response = await fetch(apiUrl, {
         headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+          'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json',
           'Cache-Control': 'no-cache, no-store, must-revalidate',
           'Pragma': 'no-cache',
@@ -66,13 +72,15 @@ export default function Employees() {
         }
       });
       
+      console.log('📊 Response status:', response.status);
       const data = await response.json();
+      console.log('📦 Response data:', data);
       
       if (response.ok && data) {
-        console.log(`Successfully fetched ${data.length} employees from employee database`);
+        console.log(`✅ Successfully fetched ${data.length} employees from employee database`);
         setEmployees(data);
       } else {
-        console.error('Failed to fetch employees:', data.message || 'Unknown error');
+        console.error('❌ Failed to fetch employees:', data.message || 'Unknown error', data);
         toast({
           title: "Error",
           description: "Failed to load employees data",
@@ -80,7 +88,7 @@ export default function Employees() {
         });
       }
     } catch (error) {
-      console.error('Error fetching employees:', error);
+      console.error('❌ Error fetching employees:', error);
       toast({
         title: "Error",
         description: "An error occurred while loading data",
@@ -97,27 +105,41 @@ export default function Employees() {
 
   // Handle employee status update
   const handleUpdateStatus = async (employeeId: string, newStatus: string) => {
+    console.log(`⏳ Updating employee status for ID ${employeeId} to ${newStatus}`);
     try {
       // Since we don't have a specific status update endpoint for employee-db,
       // we'll use the general update endpoint with just the status field
-      const response = await fetch(`${import.meta.env.VITE_API_URL || '/api'}/admin/employee-db/update/${employeeId}`, {
+      const apiUrl = `https://petropulse-api.onrender.com/api/admin/employee-db/update/${employeeId}`;
+      console.log('🔗 API URL:', apiUrl);
+      
+      const payload = { status: newStatus };
+      console.log('📦 Request payload:', payload);
+      
+      const token = localStorage.getItem('token');
+      console.log('🔑 Using token:', token ? `${token.substring(0, 15)}...` : 'No token found');
+      
+      const response = await fetch(apiUrl, {
         method: 'PUT',
         headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+          'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify({ status: newStatus })
+        body: JSON.stringify(payload)
       });
       
+      console.log('📊 Response status:', response.status);
       const data = await response.json();
+      console.log('📦 Response data:', data);
       
       if (response.ok) {
+        console.log('✅ Employee status updated successfully');
         toast({
           title: "Success",
           description: `Employee status updated to ${newStatus}`
         });
         fetchEmployees();
       } else {
+        console.error('❌ Failed to update employee status:', data.message || "Failed to update employee status", data);
         toast({
           title: "Error",
           description: data.message || "Failed to update employee status",
@@ -125,7 +147,7 @@ export default function Employees() {
         });
       }
     } catch (error) {
-      console.error('Error updating employee status:', error);
+      console.error('❌ Error updating employee status:', error);
       toast({
         title: "Error",
         description: "An error occurred while updating the employee",
@@ -136,24 +158,35 @@ export default function Employees() {
 
   // Handle employee deletion
   const handleDeleteEmployee = async (employeeId: string) => {
+    console.log(`⏳ Deleting employee with ID ${employeeId}`);
     try {
-      const response = await fetch(`${import.meta.env.VITE_API_URL || '/api'}/admin/employee-db/delete/${employeeId}`, {
+      const apiUrl = `https://petropulse-api.onrender.com/api/admin/employee-db/delete/${employeeId}`;
+      console.log('🔗 API URL:', apiUrl);
+      
+      const token = localStorage.getItem('token');
+      console.log('🔑 Using token:', token ? `${token.substring(0, 15)}...` : 'No token found');
+      
+      const response = await fetch(apiUrl, {
         method: 'DELETE',
         headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+          'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
         }
       });
       
+      console.log('📊 Response status:', response.status);
       const data = await response.json();
+      console.log('📦 Response data:', data);
       
       if (response.ok) {
+        console.log('✅ Employee deleted successfully');
         toast({
           title: "Success",
           description: "Employee removed successfully"
         });
         fetchEmployees();
       } else {
+        console.error('❌ Failed to delete employee:', data.message || "Failed to delete employee", data);
         toast({
           title: "Error",
           description: data.message || "Failed to delete employee",
@@ -161,7 +194,7 @@ export default function Employees() {
         });
       }
     } catch (error) {
-      console.error('Error deleting employee:', error);
+      console.error('❌ Error deleting employee:', error);
       toast({
         title: "Error",
         description: "An error occurred while removing the employee",
