@@ -41,7 +41,7 @@ interface EmployeeFormProps {
 const STATUS_OPTIONS = [
   { value: "active", label: "Active" },
   { value: "on_leave", label: "On Leave" },
-  { value: "suspended", label: "Suspended" },
+  { value: "inactive", label: "Inactive" },
   { value: "terminated", label: "Terminated" },
 ];
 
@@ -76,6 +76,7 @@ const formSchema = z.object({
   position: z.string().min(2, { message: "Position is required." }),
   department: z.string({ required_error: "Department is required." }),
   employeeId: z.string().optional(),
+  mainEmployeeId: z.string().optional(),
   hireDate: z.date().optional(),
   salary: z.coerce.number().min(0, { message: "Salary must be a positive number." }),
   status: z.string(),
@@ -121,6 +122,7 @@ export function EmployeeForm({ employee, onSuccess, onCancel }: EmployeeFormProp
       position: employee?.position || "",
       department: employee?.department || "other",
       employeeId: employee?.employeeId || "",
+      mainEmployeeId: employee?.employeeId || "",
       hireDate: employee?.hireDate ? new Date(employee.hireDate) : new Date(),
       salary: employee?.salary || 0,
       status: employee?.status || "active",
@@ -161,6 +163,7 @@ export function EmployeeForm({ employee, onSuccess, onCancel }: EmployeeFormProp
         position: values.position,
         department: values.department,
         employeeId: values.employeeId,
+        mainEmployeeId: values.mainEmployeeId || values.employeeId,
         hireDate: values.hireDate,
         salary: values.salary,
         status: values.status,
@@ -426,43 +429,58 @@ export function EmployeeForm({ employee, onSuccess, onCancel }: EmployeeFormProp
           
           <FormField
             control={form.control}
-            name="hireDate"
+            name="mainEmployeeId"
             render={({ field }) => (
-              <FormItem className="flex flex-col">
-                <FormLabel>Hire Date*</FormLabel>
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <FormControl>
-                      <Button
-                        variant={"outline"}
-                        className={cn(
-                          "w-full pl-3 text-left font-normal",
-                          !field.value && "text-muted-foreground"
-                        )}
-                      >
-                        {field.value ? (
-                          format(field.value, "PPP")
-                        ) : (
-                          <span>Select date</span>
-                        )}
-                        <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                      </Button>
-                    </FormControl>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0" align="start">
-                    <Calendar
-                      mode="single"
-                      selected={field.value}
-                      onSelect={field.onChange}
-                      initialFocus
-                    />
-                  </PopoverContent>
-                </Popover>
+              <FormItem>
+                <FormLabel>Main Employee ID*</FormLabel>
+                <FormDescription>Required reference ID for employee profile</FormDescription>
+                <FormControl>
+                  <Input placeholder="Main Employee ID" {...field} />
+                </FormControl>
                 <FormMessage />
               </FormItem>
             )}
           />
         </div>
+        
+        <FormField
+          control={form.control}
+          name="hireDate"
+          render={({ field }) => (
+            <FormItem className="flex flex-col">
+              <FormLabel>Hire Date*</FormLabel>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <FormControl>
+                    <Button
+                      variant={"outline"}
+                      className={cn(
+                        "w-full pl-3 text-left font-normal",
+                        !field.value && "text-muted-foreground"
+                      )}
+                    >
+                      {field.value ? (
+                        format(field.value, "PPP")
+                      ) : (
+                        <span>Select date</span>
+                      )}
+                      <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                    </Button>
+                  </FormControl>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <Calendar
+                    mode="single"
+                    selected={field.value}
+                    onSelect={field.onChange}
+                    initialFocus
+                  />
+                </PopoverContent>
+              </Popover>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
 
         {/* Salary */}
         <FormField

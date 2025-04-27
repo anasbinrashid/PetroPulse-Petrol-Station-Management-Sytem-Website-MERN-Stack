@@ -35,7 +35,13 @@ export default function Dashboard() {
         if (inventoryResponse.success && inventoryResponse.data) {
           // Transform fuel inventory data to match component requirements
           const fuelData = inventoryResponse.data.map((item: any, index: number) => ({
-            type: item.fuelType || item.name,
+            // Ensure unique type/key by adding index if needed
+            type: `${item.fuelType || item.name}${
+              inventoryResponse.data.filter(
+                (i: any, idx: number) => 
+                  idx < index && (i.fuelType || i.name) === (item.fuelType || item.name)
+              ).length > 0 ? `-${index}` : ''
+            }`,
             level: item.currentLevel || item.amount || 0,
             capacity: item.capacity || item.maxCapacity || 20000,
             color: ["blue", "green", "yellow", "purple"][index % 4] // Cycle through colors

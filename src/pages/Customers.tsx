@@ -55,7 +55,7 @@ export default function Customers() {
         params.status = statusFilter;
       }
       
-      const apiUrl = `https://petropulse-api.onrender.com/api/admin/customer-db/profiles${statusFilter ? `?status=${statusFilter}` : ''}`;
+      const apiUrl = `/api/admin/customer-db/profiles${statusFilter ? `?status=${statusFilter}` : ''}`;
       console.log('🔗 API URL:', apiUrl);
       
       // Access the customers collection directly from the customer database
@@ -108,7 +108,7 @@ export default function Customers() {
   const handleUpdateStatus = async (customerId: string, newStatus: string) => {
     console.log(`⏳ Updating customer status for ID ${customerId} to ${newStatus}`);
     try {
-      const apiUrl = `https://petropulse-api.onrender.com/api/admin/customer-db/update-status/${customerId}`;
+      const apiUrl = `/api/admin/customer-db/update-status/${customerId}`;
       console.log('🔗 API URL:', apiUrl);
       
       const payload = { status: newStatus };
@@ -159,7 +159,7 @@ export default function Customers() {
   const handleDeleteCustomer = async (customerId: string) => {
     console.log(`⏳ Deleting customer with ID ${customerId}`);
     try {
-      const apiUrl = `https://petropulse-api.onrender.com/api/admin/customer-db/delete/${customerId}`;
+      const apiUrl = `/api/admin/customer-db/delete/${customerId}`;
       console.log('🔗 API URL:', apiUrl);
       
       const token = localStorage.getItem('token');
@@ -220,7 +220,7 @@ export default function Customers() {
   const handleUpdateLoyaltyPoints = async (customerId: string, operation: string, amount: number) => {
     console.log(`⏳ Updating loyalty points for customer ID ${customerId}`, { operation, amount });
     try {
-      const apiUrl = `https://petropulse-api.onrender.com/api/admin/customer-db/update-loyalty/${customerId}`;
+      const apiUrl = `/api/admin/customer-db/update-loyalty/${customerId}`;
       console.log('🔗 API URL:', apiUrl);
       
       const payload = {

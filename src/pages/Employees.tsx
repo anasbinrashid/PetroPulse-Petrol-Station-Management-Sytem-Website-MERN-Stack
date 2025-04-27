@@ -54,7 +54,7 @@ export default function Employees() {
         params.department = department;
       }
       
-      const apiUrl = `https://petropulse-api.onrender.com/api/admin/employee-db/profiles${department ? `?department=${department}` : ''}`;
+      const apiUrl = `/api/admin/employee-db/profiles${department ? `?department=${department}` : ''}`;
       console.log('🔗 API URL:', apiUrl);
       
       // Access the employees collection directly from the employee database
@@ -109,7 +109,7 @@ export default function Employees() {
     try {
       // Since we don't have a specific status update endpoint for employee-db,
       // we'll use the general update endpoint with just the status field
-      const apiUrl = `https://petropulse-api.onrender.com/api/admin/employee-db/update/${employeeId}`;
+      const apiUrl = `/api/admin/employee-db/update/${employeeId}`;
       console.log('🔗 API URL:', apiUrl);
       
       const payload = { status: newStatus };
@@ -160,7 +160,7 @@ export default function Employees() {
   const handleDeleteEmployee = async (employeeId: string) => {
     console.log(`⏳ Deleting employee with ID ${employeeId}`);
     try {
-      const apiUrl = `https://petropulse-api.onrender.com/api/admin/employee-db/delete/${employeeId}`;
+      const apiUrl = `/api/admin/employee-db/delete/${employeeId}`;
       console.log('🔗 API URL:', apiUrl);
       
       const token = localStorage.getItem('token');

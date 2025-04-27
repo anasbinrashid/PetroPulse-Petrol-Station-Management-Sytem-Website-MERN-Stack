@@ -1,14 +1,26 @@
 import { Request, Response, NextFunction } from 'express';
 import asyncHandler from 'express-async-handler';
-import Employee from '../models/employeeModel';
-import Attendance from '../models/attendanceModel';
+import Employee from '../models/employee/EmployeeModel';
+import Attendance, { IAttendance } from '../models/employee/AttendanceModel';
+import mongoose from 'mongoose';
+
+// Define interface for req.user
+interface RequestUser {
+  _id: string | mongoose.Types.ObjectId;
+  [key: string]: any;
+}
+
+// Define custom request interface instead of extending Express namespace
+interface AuthenticatedRequest extends Request {
+  user?: RequestUser;
+}
 
 /**
  * @desc    Get employee profile
  * @route   GET /api/employees/profile
  * @access  Private/Employee
  */
-export const getEmployeeProfile = asyncHandler(async (req: Request, res: Response, next: NextFunction) => {
+export const getEmployeeProfile = asyncHandler(async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
   try {
     console.log('Fetching employee profile...');
     
@@ -29,7 +41,7 @@ export const getEmployeeProfile = asyncHandler(async (req: Request, res: Respons
       return;
     }
     
-    console.log(`Found employee profile for: ${employee.name}`);
+    console.log(`Found employee profile for: ${employee.firstName} ${employee.lastName}`);
     res.json(employee);
   } catch (error) {
     console.error('Error fetching employee profile:', error);
@@ -42,7 +54,7 @@ export const getEmployeeProfile = asyncHandler(async (req: Request, res: Respons
  * @route   GET /api/employees/attendance
  * @access  Private/Employee
  */
-export const getMyAttendance = asyncHandler(async (req: Request, res: Response, next: NextFunction) => {
+export const getMyAttendance = asyncHandler(async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
   try {
     console.log('Fetching employee attendance records...');
     
@@ -62,7 +74,7 @@ export const getMyAttendance = asyncHandler(async (req: Request, res: Response, 
     
     // Find attendance records for the employee
     const attendance = await Attendance.find({
-      employeeId,
+      employee: employeeId,
       date: { $gte: startDate, $lte: endDate }
     }).sort({ date: -1 });
     
@@ -70,9 +82,9 @@ export const getMyAttendance = asyncHandler(async (req: Request, res: Response, 
     
     // Calculate summary statistics
     const total = attendance.length;
-    const present = attendance.filter(record => record.status === 'present').length;
-    const absent = attendance.filter(record => record.status === 'absent').length;
-    const late = attendance.filter(record => record.status === 'late').length;
+    const present = attendance.filter((record: IAttendance) => record.status === 'present').length;
+    const absent = attendance.filter((record: IAttendance) => record.status === 'absent').length;
+    const late = attendance.filter((record: IAttendance) => record.status === 'late').length;
     
     res.json({
       records: attendance,
@@ -95,7 +107,7 @@ export const getMyAttendance = asyncHandler(async (req: Request, res: Response, 
  * @route   POST /api/employees/clock-in
  * @access  Private/Employee
  */
-export const clockIn = asyncHandler(async (req: Request, res: Response, next: NextFunction) => {
+export const clockIn = asyncHandler(async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
   try {
     console.log('Employee clocking in...');
     
@@ -112,12 +124,12 @@ export const clockIn = asyncHandler(async (req: Request, res: Response, next: Ne
     today.setHours(0, 0, 0, 0);
     
     const existingRecord = await Attendance.findOne({
-      employeeId,
+      employee: employeeId,
       date: {
         $gte: today,
         $lt: new Date(today.getTime() + 24 * 60 * 60 * 1000)
       },
-      clockIn: { $exists: true }
+      clockInTime: { $exists: true }
     });
     
     if (existingRecord) {
@@ -128,13 +140,13 @@ export const clockIn = asyncHandler(async (req: Request, res: Response, next: Ne
     
     // Create new attendance record
     const attendance = await Attendance.create({
-      employeeId,
+      employee: employeeId,
       date: new Date(),
-      clockIn: new Date(),
+      clockInTime: new Date().toTimeString().slice(0, 5), // Format as HH:MM
       status: 'present'
     });
     
-    console.log(`Employee clocked in at ${attendance.clockIn}`);
+    console.log(`Employee clocked in at ${attendance.clockInTime}`);
     res.status(201).json(attendance);
   } catch (error) {
     console.error('Error clocking in:', error);
@@ -147,7 +159,7 @@ export const clockIn = asyncHandler(async (req: Request, res: Response, next: Ne
  * @route   POST /api/employees/clock-out
  * @access  Private/Employee
  */
-export const clockOut = asyncHandler(async (req: Request, res: Response, next: NextFunction) => {
+export const clockOut = asyncHandler(async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
   try {
     console.log('Employee clocking out...');
     
@@ -164,13 +176,13 @@ export const clockOut = asyncHandler(async (req: Request, res: Response, next: N
     today.setHours(0, 0, 0, 0);
     
     const attendanceRecord = await Attendance.findOne({
-      employeeId,
+      employee: employeeId,
       date: {
         $gte: today,
         $lt: new Date(today.getTime() + 24 * 60 * 60 * 1000)
       },
-      clockIn: { $exists: true },
-      clockOut: { $exists: false }
+      clockInTime: { $exists: true },
+      clockOutTime: { $exists: false }
     });
     
     if (!attendanceRecord) {
@@ -180,19 +192,13 @@ export const clockOut = asyncHandler(async (req: Request, res: Response, next: N
     }
     
     // Update with clock out time
-    attendanceRecord.clockOut = new Date();
+    attendanceRecord.clockOutTime = new Date().toTimeString().slice(0, 5); // Format as HH:MM
     
-    // Calculate hours worked
-    const clockInTime = new Date(attendanceRecord.clockIn).getTime();
-    const clockOutTime = new Date(attendanceRecord.clockOut).getTime();
-    const hoursWorked = (clockOutTime - clockInTime) / (1000 * 60 * 60);
-    
-    attendanceRecord.hours = parseFloat(hoursWorked.toFixed(2));
-    
+    // Hours will be calculated in the pre-save hook of the model
     await attendanceRecord.save();
     
-    console.log(`Employee clocked out at ${attendanceRecord.clockOut}`);
-    console.log(`Hours worked: ${attendanceRecord.hours}`);
+    console.log(`Employee clocked out at ${attendanceRecord.clockOutTime}`);
+    console.log(`Hours worked: ${attendanceRecord.totalHours || 'Not calculated'}`);
     
     res.json(attendanceRecord);
   } catch (error) {
@@ -206,7 +212,7 @@ export const clockOut = asyncHandler(async (req: Request, res: Response, next: N
  * @route   GET /api/employees/schedule
  * @access  Private/Employee
  */
-export const getEmployeeSchedule = asyncHandler(async (req: Request, res: Response, next: NextFunction) => {
+export const getEmployeeSchedule = asyncHandler(async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
   try {
     console.log('Fetching employee schedule...');
     
@@ -227,6 +233,19 @@ export const getEmployeeSchedule = asyncHandler(async (req: Request, res: Respon
       return;
     }
     
+    // Determine shift based on position or department
+    // Since the model doesn't have a shifts property, we'll derive it
+    let shift = 'day'; // Default shift
+    
+    // You can add logic to determine shift based on department or position
+    if (employee.department === 'cashier') {
+      shift = 'day';
+    } else if (employee.department === 'security') {
+      shift = 'night';
+    } else if (employee.position.toLowerCase().includes('manager')) {
+      shift = 'morning';
+    }
+    
     // Mock schedule data - in a real application, this would come from a schedule collection
     const currentDate = new Date();
     const weekStart = new Date(currentDate);
@@ -239,8 +258,8 @@ export const getEmployeeSchedule = asyncHandler(async (req: Request, res: Respon
       
       let startTime, endTime;
       
-      // Set shift times based on employee's assigned shift
-      switch(employee.shifts) {
+      // Set shift times based on determined shift
+      switch(shift) {
         case 'morning':
           startTime = new Date(day.setHours(6, 0, 0));
           endTime = new Date(day.setHours(14, 0, 0));
@@ -264,11 +283,11 @@ export const getEmployeeSchedule = asyncHandler(async (req: Request, res: Respon
         dayOfWeek: ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'][day.getDay()],
         startTime,
         endTime,
-        shift: employee.shifts
+        shift
       });
     }
     
-    console.log(`Generated schedule for employee with ${employee.shifts} shift`);
+    console.log(`Generated schedule for employee with ${shift} shift`);
     res.json(schedule);
   } catch (error) {
     console.error('Error fetching employee schedule:', error);
