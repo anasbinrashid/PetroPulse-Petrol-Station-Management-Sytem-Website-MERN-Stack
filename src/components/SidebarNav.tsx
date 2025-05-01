@@ -14,7 +14,8 @@ import {
   Settings,
   CreditCard,
   FileText,
-  LucideIcon
+  LucideIcon,
+  LogOut
 } from "lucide-react";
 
 type NavItem = {
@@ -27,7 +28,7 @@ type NavItem = {
 const navItems: NavItem[] = [
   {
     title: "Dashboard",
-    href: "/",
+    href: "/admin/dashboard", // Updated to point to the admin dashboard
     icon: LayoutDashboard,
   },
   {
@@ -92,6 +93,16 @@ export function SidebarNav() {
       ...prev,
       [title]: !prev[title],
     }));
+  };
+
+  const handleLogout = () => {
+    localStorage.removeItem("token");
+    localStorage.removeItem("userType");
+    localStorage.removeItem("userEmail");
+    localStorage.removeItem("userName");
+    localStorage.removeItem("employeeId");
+    localStorage.removeItem("role");
+    window.location.href = "/auth/login"; // Redirect to login page
   };
 
   return (
@@ -162,6 +173,16 @@ export function SidebarNav() {
             </div>
           ))}
         </nav>
+      </div>
+      <div className="border-t p-4">
+        <Button 
+          variant="outline" 
+          className="w-full justify-start text-destructive hover:text-destructive"
+          onClick={handleLogout}
+        >
+          <LogOut className="mr-2 h-4 w-4" />
+          Logout
+        </Button>
       </div>
     </div>
   );

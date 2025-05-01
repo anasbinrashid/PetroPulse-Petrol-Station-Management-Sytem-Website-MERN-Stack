@@ -140,7 +140,7 @@ export default function Dashboard() {
         />
         <StatCard
           title="Customers"
-          value={dashboardData?.customers?.count?.toString() || "0"}
+          value={dashboardData?.customers?.total?.toString() || "0"} // Updated to use customers.total
           description="Repeat customers this week"
           icon={Users}
           trend={dashboardData?.customers?.trend > 0 ? "up" : dashboardData?.customers?.trend < 0 ? "down" : "neutral"}
