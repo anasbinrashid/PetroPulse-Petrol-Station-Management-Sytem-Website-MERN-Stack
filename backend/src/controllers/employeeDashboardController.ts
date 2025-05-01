@@ -523,38 +523,23 @@ export const clockOut = typedAsyncHandler(async (req: Request, res: Response) =>
 // @access  Private/Employee
 export const updateEmployeeProfile = typedAsyncHandler(async (req: Request, res: Response) => {
   const userId = req.user?._id;
-  
+
   console.log(`[EmployeeDashboardController] Update profile request for employee: ${userId}`);
-  
+
   if (!userId) {
     res.status(401);
     throw new Error('Not authorized, no token');
   }
-  
+
   // Get employee from main database
   const employee = await Employee.findById(userId);
-  
+
   if (!employee) {
     res.status(404);
     throw new Error('Employee not found');
   }
-  
-  // Get employee profile from employee database
-  const EmployeeProfile = await (await EmployeeProfileConnection);
-  let employeeProfile = await EmployeeProfile.findOne({ mainEmployeeId: employee.employeeId });
-  
-  // If profile doesn't exist, create it
-  if (!employeeProfile) {
-    await syncEmployeeProfile(employee);
-    employeeProfile = await EmployeeProfile.findOne({ mainEmployeeId: employee.employeeId });
-  }
-  
-  if (!employeeProfile) {
-    res.status(404);
-    throw new Error('Employee profile not found');
-  }
-  
-  // Update fields that employees are allowed to modify
+
+  // Extract fields to update from the request body
   const {
     bio,
     skills,
@@ -563,31 +548,60 @@ export const updateEmployeeProfile = typedAsyncHandler(async (req: Request, res:
     certifications,
     preferences,
     socialMedia,
-    phone
+    phone,
+    firstName,
+    lastName
   } = req.body;
-  
-  // Only update fields that are present in the request
-  if (bio !== undefined) employeeProfile.bio = bio;
-  if (skills !== undefined) employeeProfile.skills = skills;
-  if (education !== undefined) employeeProfile.education = education;
-  if (experience !== undefined) employeeProfile.experience = experience;
-  if (certifications !== undefined) employeeProfile.certifications = certifications;
-  if (preferences !== undefined) employeeProfile.preferences = preferences;
-  if (socialMedia !== undefined) employeeProfile.socialMedia = socialMedia;
-  
-  // Update main employee record if phone is provided
+
+  // Prepare the update object
+  const updateData: any = {
+    bio,
+    skills,
+    education,
+    experience,
+    certifications,
+    preferences,
+    socialMedia,
+    firstName,
+    lastName,
+    lastUpdated: new Date(),
+  };
+
+  // Remove undefined fields from the update object
+  Object.keys(updateData).forEach(key => {
+    if (updateData[key] === undefined) {
+      delete updateData[key];
+    }
+  });
+
+  // Update phone in the main employee record if provided
   if (phone) {
     employee.phone = phone;
-    employeeProfile.phone = phone;
     await employee.save();
+    updateData.phone = phone;
   }
-  
-  employeeProfile.lastUpdated = new Date();
-  const updatedProfile = await employeeProfile.save();
-  
-  console.log(`[EmployeeDashboardController] Updated profile for: ${employee.email}`);
-  
-  res.json(updatedProfile);
+
+  console.log('[DEBUG] Updating profile with data:', updateData);
+
+  // Use findByIdAndUpdate to update the profile and return the updated document
+  const EmployeeProfile = await (await EmployeeProfileConnection);
+  const updatedProfile = await EmployeeProfile.findOneAndUpdate(
+    { mainEmployeeId: employee.employeeId },
+    updateData,
+    { new: true } // Return the updated document
+  );
+
+  if (!updatedProfile) {
+    res.status(404);
+    throw new Error('Employee profile not found');
+  }
+
+  console.log('[DEBUG] Updated profile:', updatedProfile);
+
+  res.json({
+    success: true,
+    profile: updatedProfile
+  });
 });
 
 // Helper function to sync employee data between databases
@@ -1049,4 +1063,4 @@ export const reportAttendance = typedAsyncHandler(async (req: Request, res: Resp
     message: 'Attendance reported successfully. Pending approval.',
     data: savedRecord
   });
-}); 
+});

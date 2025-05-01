@@ -83,6 +83,20 @@ export function EmployeeLayout() {
     };
 
     checkAuth();
+
+    // Listen for changes to localStorage
+    const handleStorageChange = (event: StorageEvent) => {
+      if (event.key === "userName" && event.newValue) {
+        console.log('[DEBUG][EmployeeLayout] Detected localStorage change for userName:', event.newValue);
+        setEmployeeName(event.newValue);
+      }
+    };
+
+    window.addEventListener("storage", handleStorageChange);
+
+    return () => {
+      window.removeEventListener("storage", handleStorageChange);
+    };
   }, [navigate]);
 
   const handleLogout = () => {

@@ -56,6 +56,10 @@ export default function EmployeeProfile() {
     fetchEmployeeProfile();
   }, []);
 
+  useEffect(() => {
+    console.log('[DEBUG] Profile state updated:', JSON.stringify(profile, null, 2));
+  }, [profile]);
+
   const fetchEmployeeProfile = async () => {
     try {
       setLoading(true);
@@ -150,34 +154,53 @@ export default function EmployeeProfile() {
 
   const handleUpdateProfile = async () => {
     try {
+      console.log('[DEBUG] Starting profile update process');
       setUpdating(true);
       
       // Get authentication token from localStorage
       const token = localStorage.getItem('token');
       if (!token) {
+        console.log('[DEBUG] Missing authentication token');
         toast.error('Authentication required. Please log in again.');
         return;
       }
       
+      console.log('[DEBUG] Sending PUT request to /api/employee/profile with data:', JSON.stringify(editedProfile, null, 2));
       const response = await axios.put('/api/employee/profile', editedProfile, {
         headers: {
           Authorization: `Bearer ${token}`
         }
       });
       
-      if (response.data.success) {
+      console.log('[DEBUG] Response from /api/employee/profile:', JSON.stringify(response.data, null, 2));
+      if (response.data.success || response.data.profile) {
+        console.log('[DEBUG] Profile updated successfully');
         toast.success('Profile updated successfully');
-        setProfile(response.data.profile);
+        setProfile({ ...response.data.profile }); // Replace with a new object to trigger re-render
+        setEditedProfile({ ...response.data.profile }); // Sync editedProfile with the updated profile
         setIsEditing(false);
+
+        // Update localStorage with the new name
+        if (response.data.profile.firstName && response.data.profile.lastName) {
+          const updatedName = `${response.data.profile.firstName} ${response.data.profile.lastName}`;
+          localStorage.setItem('userName', updatedName);
+          console.log('[DEBUG] Updated localStorage userName:', updatedName);
+        }
+      } else {
+        console.log('[DEBUG] Profile update failed with message:', response.data.message);
+        toast.error(response.data.message || 'Failed to update profile');
       }
     } catch (error: any) {
-      console.error('Error updating profile:', error);
+      console.error('[DEBUG] Error updating profile:', error);
       if (error.response && error.response.status === 401) {
+        console.log('[DEBUG] Unauthorized error during profile update');
         toast.error('Session expired. Please log in again.');
       } else {
+        console.log('[DEBUG] Other error during profile update:', error.message);
         toast.error(error.response?.data?.message || 'Failed to update profile');
       }
     } finally {
+      console.log('[DEBUG] Profile update process completed');
       setUpdating(false);
     }
   };
@@ -625,4 +648,4 @@ export default function EmployeeProfile() {
       </div>
     </div>
   );
-} 
+}
