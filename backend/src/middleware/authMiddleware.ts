@@ -8,6 +8,7 @@ import { initCustomerModel } from '../models/customerDB/CustomerModel';
 
 interface JwtPayload {
   id: string;
+  userType: string;
 }
 
 declare global {
@@ -20,88 +21,84 @@ declare global {
 
 export const protect = asyncHandler(async (req: Request, res: Response, next: NextFunction) => {
   let token;
-  console.log(`[DEBUG][AuthMiddleware] Authorization header: ${req.headers.authorization ? 'Present' : 'Missing'}`);
+  console.log(`[AuthMiddleware] Authorization header: ${req.headers.authorization ? 'Present' : 'Missing'}`);
 
   if (req.headers.authorization && req.headers.authorization.startsWith('Bearer')) {
     try {
+      // Get token from header
       token = req.headers.authorization.split(' ')[1];
-      console.log(`[DEBUG][AuthMiddleware] Token extracted: ${token ? token.substring(0, 15) + '...' : 'Missing'}`);
+      console.log(`[AuthMiddleware] Token extracted: ${token ? token.substring(0, 15) + '...' : 'Missing'}`);
       
+      // Verify token
       const decoded = jwt.verify(token, process.env.JWT_SECRET || '') as JwtPayload;
-      console.log(`[DEBUG][AuthMiddleware] Decoded token:`, JSON.stringify(decoded));
+      console.log(`[AuthMiddleware] Decoded token:`, JSON.stringify(decoded));
       
-      // Try to find user in each collection and add userType
+      if (!decoded.id || !decoded.userType) {
+        throw new Error('Invalid token payload');
+      }
+
+      // Try to find user in appropriate collection based on userType
       let user = null;
       
-      // Check admin collection
-      console.log(`[DEBUG][AuthMiddleware] Checking admin collection for user ID: ${decoded.id}`);
-      const admin = await Admin.findById(decoded.id).select('-password') as any;
-      if (admin) {
-        console.log(`[DEBUG][AuthMiddleware] User found in admin collection`);
-        user = admin;
-        user.userType = 'admin';
-      }
-      
-      // Check employee collection
-      if (!user) {
-        console.log(`[DEBUG][AuthMiddleware] Checking employee collection for user ID: ${decoded.id}`);
-        const employee = await Employee.findById(decoded.id).select('-password') as any;
-        if (employee) {
-          console.log(`[DEBUG][AuthMiddleware] User found in employee collection`);
-          user = employee;
-          user.userType = 'employee';
+      try {
+        switch (decoded.userType) {
+          case 'admin':
+            console.log(`[AuthMiddleware] Checking admin collection for user ID: ${decoded.id}`);
+            user = await Admin.findById(decoded.id).select('-password');
+            break;
+            
+          case 'employee':
+            console.log(`[AuthMiddleware] Checking employee collection for user ID: ${decoded.id}`);
+            user = await Employee.findById(decoded.id).select('-password');
+            break;
+            
+          case 'customer':
+            console.log(`[AuthMiddleware] Checking customer collections for user ID: ${decoded.id}`);
+            try {
+              // Try customer-specific database first
+              const CustomerModel = await initCustomerModel();
+              user = await CustomerModel.findById(decoded.id).select('-password');
+              
+              // If not found, try admin's customer collection
+              if (!user) {
+                user = await Customer.findById(decoded.id).select('-password');
+              }
+            } catch (error) {
+              console.error(`[AuthMiddleware] Error checking customer databases:`, error);
+              // Fallback to admin's customer collection
+              user = await Customer.findById(decoded.id).select('-password');
+            }
+            break;
+            
+          default:
+            throw new Error('Invalid user type in token');
         }
-      }
-      
-      // Check customer-specific database first
-      if (!user) {
-        console.log(`[DEBUG][AuthMiddleware] Checking customer-specific database for user ID: ${decoded.id}`);
-        try {
-          // Initialize customer model with petropulse-customers DB connection
-          const CustomerModel = await initCustomerModel();
-          
-          // Find customer by ID in customer-specific database
-          const customerFromCustomerDB = await CustomerModel.findById(decoded.id) as any;
-          
-          if (customerFromCustomerDB) {
-            console.log(`[DEBUG][AuthMiddleware] User found in customer-specific database`);
-            user = customerFromCustomerDB;
-            user.userType = 'customer';
-          }
-        } catch (error) {
-          console.error(`[DEBUG][AuthMiddleware] Error checking customer-specific database: ${error}`);
-          console.log(`[DEBUG][AuthMiddleware] Falling back to admin database for customer authentication`);
+        
+        if (!user) {
+          throw new Error('User not found');
         }
-      }
-      
-      // Check admin's customer collection as fallback
-      if (!user) {
-        console.log(`[DEBUG][AuthMiddleware] Checking admin customer collection for user ID: ${decoded.id}`);
-        const customer = await Customer.findById(decoded.id).select('-password') as any;
-        if (customer) {
-          console.log(`[DEBUG][AuthMiddleware] User found in admin customer collection`);
-          user = customer;
-          user.userType = 'customer';
-        }
-      }
-      
-      if (!user) {
-        console.log(`[DEBUG][AuthMiddleware] No user found for ID: ${decoded.id}`);
+        
+        // Add user type to the user object
+        user = user.toObject();
+        user.userType = decoded.userType;
+        
+        console.log(`[AuthMiddleware] User authenticated as: ${user.userType}, ID: ${user._id}`);
+        req.user = user;
+        next();
+        
+      } catch (error) {
+        console.error(`[AuthMiddleware] Error finding user:`, error);
         res.status(401);
         throw new Error('User not found');
       }
       
-      console.log(`[DEBUG][AuthMiddleware] User authenticated as: ${user.userType}, ID: ${user._id}`);
-      req.user = user;
-      next();
-    } catch (error: any) {
-      console.error(`[DEBUG][AuthMiddleware] Authentication error: ${error.message}`);
-      console.error(`[DEBUG][AuthMiddleware] Error stack: ${error.stack}`);
+    } catch (error) {
+      console.error(`[AuthMiddleware] Token verification failed:`, error);
       res.status(401);
       throw new Error('Not authorized, token failed');
     }
-  } else if (!token) {
-    console.log(`[DEBUG][AuthMiddleware] No token provided in request`);
+  } else {
+    console.log(`[AuthMiddleware] No token provided in request`);
     res.status(401);
     throw new Error('Not authorized, no token');
   }

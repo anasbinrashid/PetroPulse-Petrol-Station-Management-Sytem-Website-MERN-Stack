@@ -59,23 +59,24 @@ export function EmployeeLayout() {
       const storedUserType = localStorage.getItem("userType");
       const storedName = localStorage.getItem("userName");
       const storedRole = localStorage.getItem("role");
+      const employeeId = localStorage.getItem("employeeId");
       
       console.log('[DEBUG][EmployeeLayout] Checking authentication:');
       console.log(`[DEBUG][EmployeeLayout] - Token: ${token ? 'Present' : 'Missing'}`);
       console.log(`[DEBUG][EmployeeLayout] - UserType: ${storedUserType}`);
       console.log(`[DEBUG][EmployeeLayout] - Name: ${storedName}`);
+      console.log(`[DEBUG][EmployeeLayout] - EmployeeId: ${employeeId ? 'Present' : 'Missing'}`);
       
-      if (!token) {
-        console.log('[DEBUG][EmployeeLayout] No token found, redirecting to login');
+      if (!token || !employeeId) {
+        console.log('[DEBUG][EmployeeLayout] Missing required data, redirecting to login');
         navigate("/auth/login");
         return;
       }
       
-      // Allow any authenticated user with a token to access employee pages for debugging
-      // In production, we would strictly check userType === "employee"
       if (storedUserType !== "employee") {
-        console.log('[DEBUG][EmployeeLayout] Setting userType to employee for debugging');
-        localStorage.setItem("userType", "employee");
+        console.log('[DEBUG][EmployeeLayout] Invalid user type, redirecting to login');
+        navigate("/auth/login");
+        return;
       }
       
       if (storedName) setEmployeeName(storedName);
@@ -110,10 +111,11 @@ export function EmployeeLayout() {
     navigate("/auth/login");
   };
 
-  // Modified check - only ensure we have a token
+  // Modified check - ensure we have both token and employeeId
   const token = localStorage.getItem("token");
-  if (!token) {
-    console.log('[DEBUG][EmployeeLayout] No token in storage, redirecting to login');
+  const employeeId = localStorage.getItem("employeeId");
+  if (!token || !employeeId) {
+    console.log('[DEBUG][EmployeeLayout] Missing required data, redirecting to login');
     return <Navigate to="/auth/login" />;
   }
 

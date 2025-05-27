@@ -13,7 +13,8 @@
     "test-maintenance": "node src/utils/testMaintenanceApi.js",
     "sync-employee-data": "ts-node src/utils/syncEmployeeData.ts",
     "seed-customers": "node src/seeds/seedAllCustomers.js",
-    "sync-customer-data": "ts-node src/utils/syncCustomerData.ts"
+    "sync-customer-data": "ts-node src/utils/syncCustomerData.ts",
+    "seed:admin": "ts-node src/scripts/seedAdmin.ts"
   },
   "keywords": [
     "petropulse",

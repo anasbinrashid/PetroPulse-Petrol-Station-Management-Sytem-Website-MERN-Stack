@@ -60,7 +60,6 @@ export default function Dashboard() {
               date: new Date(sale.createdAt || sale.date).toLocaleString(),
               type: sale.itemType || sale.productName || 'Purchase',
               amount: parseFloat(sale.totalAmount || sale.price || sale.total || 0),
-              pumpNumber: sale.pumpNumber || sale.pump || '-',
               paymentMethod: sale.paymentMethod || 'Card',
             }));
           setRecentTransactions(transactions);

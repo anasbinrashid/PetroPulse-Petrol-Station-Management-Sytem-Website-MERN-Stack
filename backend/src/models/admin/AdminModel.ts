@@ -1,4 +1,5 @@
 import mongoose, { Document, Schema } from 'mongoose';
+import bcrypt from 'bcrypt';
 
 export interface IAdmin extends Document {
   name: string;
@@ -75,9 +76,28 @@ const AdminSchema: Schema = new Schema(
   }
 );
 
-// Method to compare password (plain text)
-AdminSchema.methods.comparePassword = async function (candidatePassword: string): Promise<boolean> {
-  return candidatePassword === this.password;
+// Hash password before saving
+AdminSchema.pre('save', async function(next) {
+  if (!this.isModified('password')) {
+    return next();
+  }
+  
+  try {
+    const salt = await bcrypt.genSalt(10);
+    this.password = await bcrypt.hash(this.password, salt);
+    next();
+  } catch (error: any) {
+    next(error);
+  }
+});
+
+// Method to compare password
+AdminSchema.methods.comparePassword = async function(candidatePassword: string): Promise<boolean> {
+  try {
+    return await bcrypt.compare(candidatePassword, this.password);
+  } catch (error) {
+    throw error;
+  }
 };
 
 // Prevent model compilation error by checking if it exists first
