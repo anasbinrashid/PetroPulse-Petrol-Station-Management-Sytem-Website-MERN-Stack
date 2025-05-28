@@ -8,18 +8,29 @@ import { initCustomerModel } from '../models/customerDB/CustomerModel';
 import jwt from 'jsonwebtoken';
 
 // Generate JWT
-const generateToken = (id: string) => {
-  return jwt.sign({ id }, process.env.JWT_SECRET || 'fallback_secret', {
-    expiresIn: '30d',
-  });
+const generateToken = (id: string, userType: string) => {
+  return jwt.sign(
+    { id, userType },
+    process.env.JWT_SECRET || 'fallback_secret',
+    {
+      expiresIn: '30d',
+      algorithm: 'HS256'
+    }
+  );
 };
 
 // @desc    Auth user & get token
 // @route   POST /api/users/login
 // @access  Public
 export const authUser = asyncHandler(async (req: Request, res: Response) => {
-  console.log("Login payload:", req.body);
+  console.log("[AuthUser] Login attempt received");
   const { email, password } = req.body;
+
+  if (!email || !password) {
+    console.log("[AuthUser] Missing email or password");
+    res.status(400);
+    throw new Error('Please provide email and password');
+  }
 
   // First try the admin collection
   let user = null;
@@ -27,104 +38,111 @@ export const authUser = asyncHandler(async (req: Request, res: Response) => {
   let profile = null;
   let userId = "";
 
-  // Check in admin collection
-  const admin = await Admin.findOne({ email }) as any;
-  if (admin) {
-    const isMatch = await admin.comparePassword(password);
-    if (isMatch) {
-      user = admin;
-      userType = "admin";
-      profile = admin;
-      userId = admin._id;
-      console.log("Admin login successful:", admin.email);
-    } else {
-      console.log("Admin password mismatch");
-    }
-  }
-  
-  // If not found in admin, check in employee collection
-  if (!user) {
-    const employee = await Employee.findOne({ email }) as any;
-    if (employee) {
-      const isMatch = await employee.comparePassword(password);
+  try {
+    // Check in admin collection
+    console.log("[AuthUser] Checking admin collection");
+    const admin = await Admin.findOne({ email }) as any;
+    if (admin) {
+      const isMatch = await admin.comparePassword(password);
       if (isMatch) {
-        user = employee;
-        userType = "employee";
-        profile = employee;
-        userId = employee._id;
-        console.log("Employee login successful:", employee.email);
+        user = admin;
+        userType = "admin";
+        profile = admin;
+        userId = admin._id;
+        console.log("[AuthUser] Admin login successful:", admin.email);
       } else {
-        console.log("Employee password mismatch");
+        console.log("[AuthUser] Admin password mismatch");
       }
     }
-  }
-  
-  // If not found in employee, check in customer-specific database first 
-  if (!user) {
-    try {
-      // Initialize customer model with petropulse-customers DB connection
-      const CustomerModel = await initCustomerModel();
-      
-      // Find customer by email in customer-specific DB and include password field
-      const customerFromCustomerDB = await CustomerModel.findOne({ email }).select('+password') as any;
-      
-      if (customerFromCustomerDB) {
-        // Compare passwords using the comparePassword method
-        const isMatch = await customerFromCustomerDB.comparePassword(password);
-        
+    
+    // If not found in admin, check in employee collection
+    if (!user) {
+      console.log("[AuthUser] Checking employee collection");
+      const employee = await Employee.findOne({ email }) as any;
+      if (employee) {
+        const isMatch = await employee.comparePassword(password);
         if (isMatch) {
-          user = customerFromCustomerDB;
-          userType = "customer";
-          profile = customerFromCustomerDB;
-          userId = customerFromCustomerDB._id;
-          console.log("Customer login successful from customer-specific DB:", customerFromCustomerDB.email);
+          user = employee;
+          userType = "employee";
+          profile = employee;
+          userId = employee._id;
+          console.log("[AuthUser] Employee login successful:", employee.email);
         } else {
-          console.log("Customer password mismatch from customer-specific DB");
+          console.log("[AuthUser] Employee password mismatch");
         }
-      } else {
-        console.log("Customer not found in customer-specific DB, checking admin DB as fallback");
-      }
-    } catch (error) {
-      console.error("Error connecting to customer-specific database:", error);
-      console.log("Falling back to admin database for customer authentication");
-    }
-  }
-  
-  // If still not found, check the admin database's customer collection as fallback
-  if (!user) {
-    const customer = await Customer.findOne({ email }) as any;
-    if (customer) {
-      const isMatch = await customer.comparePassword(password);
-      if (isMatch) {
-        user = customer;
-        userType = "customer";
-        profile = customer;
-        userId = customer._id;
-        console.log("Customer login successful from admin DB:", customer.email);
-      } else {
-        console.log("Customer password mismatch from admin DB");
       }
     }
-  }
+    
+    // If not found in employee, check in customer-specific database first 
+    if (!user) {
+      console.log("[AuthUser] Checking customer-specific database");
+      try {
+        const CustomerModel = await initCustomerModel();
+        const customerFromCustomerDB = await CustomerModel.findOne({ email }).select('+password') as any;
+        
+        if (customerFromCustomerDB) {
+          const isMatch = await customerFromCustomerDB.comparePassword(password);
+          if (isMatch) {
+            user = customerFromCustomerDB;
+            userType = "customer";
+            profile = customerFromCustomerDB;
+            userId = customerFromCustomerDB._id;
+            console.log("[AuthUser] Customer login successful from customer-specific DB:", customerFromCustomerDB.email);
+          } else {
+            console.log("[AuthUser] Customer password mismatch from customer-specific DB");
+          }
+        }
+      } catch (error) {
+        console.error("[AuthUser] Error checking customer-specific database:", error);
+      }
+    }
+    
+    // If still not found, check the admin database's customer collection as fallback
+    if (!user) {
+      console.log("[AuthUser] Checking admin customer collection");
+      const customer = await Customer.findOne({ email }) as any;
+      if (customer) {
+        const isMatch = await customer.comparePassword(password);
+        if (isMatch) {
+          user = customer;
+          userType = "customer";
+          profile = customer;
+          userId = customer._id;
+          console.log("[AuthUser] Customer login successful from admin DB:", customer.email);
+        } else {
+          console.log("[AuthUser] Customer password mismatch from admin DB");
+        }
+      }
+    }
 
-  if (user) {
-    // Format name based on user type (Admin has name, others have firstName/lastName)
-    const name = userType === 'admin' 
-      ? user.name 
-      : `${user.firstName} ${user.lastName}`;
+    if (user) {
+      // Format name based on user type
+      const name = userType === 'admin' 
+        ? user.name 
+        : `${user.firstName} ${user.lastName}`;
+        
+      // Generate JWT token
+      const token = generateToken(userId, userType);
       
-    res.json({
-      _id: userId,
-      name: name,
-      email: user.email,
-      userType: userType,
-      profile: profile,
-      token: generateToken(userId),
-    });
-  } else {
-    console.log("Authentication failed: Invalid email or password");
-    res.status(401);
-    throw new Error('Invalid email or password');
+      console.log("[AuthUser] Login successful, sending response");
+      
+      res.json({
+        _id: userId,
+        name: name,
+        email: user.email,
+        userType: userType,
+        profile: profile,
+        token: token,
+      });
+    } else {
+      console.log("[AuthUser] Authentication failed: Invalid email or password");
+      res.status(401);
+      throw new Error('Invalid email or password');
+    }
+  } catch (error: any) {
+    console.error("[AuthUser] Error during authentication:", error);
+    res.status(500);
+    throw new Error(error.message || 'Authentication failed');
   }
 });
 
@@ -224,7 +242,7 @@ export const registerUser = asyncHandler(async (req: Request, res: Response) => 
       email: user.email,
       userType: userType,
       profile: profile,
-      token: generateToken(userId),
+      token: generateToken(userId, userType),
     });
   } else {
     res.status(400);
@@ -360,7 +378,7 @@ export const updateUserProfile = asyncHandler(async (req: Request, res: Response
       email: updatedUser.email,
       userType: userType,
       profile: updatedUser,
-      token: generateToken(userId),
+      token: generateToken(userId, userType),
     });
   } else {
     res.status(404);

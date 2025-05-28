@@ -59,7 +59,7 @@ export function CustomerLayout() {
     localStorage.removeItem("userName");
     localStorage.removeItem("customerId");
     toast.success("You have been logged out");
-    navigate("/auth/login");
+    navigate("/");
   };
 
   if (userType !== "customer") {

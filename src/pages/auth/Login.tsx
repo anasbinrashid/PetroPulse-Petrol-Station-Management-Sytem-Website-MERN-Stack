@@ -1,63 +1,79 @@
-
+import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Button } from "@/components/ui/button";
-import { AuthLayout } from "@/components/auth/AuthLayout";
-import { Card, CardContent } from "@/components/ui/card";
-import { UserCircle, Users, ShieldCheck } from "lucide-react";
+import { motion } from "framer-motion";
+import "@fortawesome/fontawesome-free/css/all.min.css";
+import { VideoBackground } from "@/components/VideoBackground";
 
 export default function Login() {
   const navigate = useNavigate();
+  const [selectedType, setSelectedType] = useState<"admin" | "employee" | "customer" | null>(null);
+
+  const handleTypeSelect = (type: "admin" | "employee" | "customer") => {
+    setSelectedType(type);
+    setTimeout(() => {
+      navigate(`/auth/${type}`);
+    }, 500);
+  };
 
   return (
-    <AuthLayout
-      title="Welcome to PetroPulse"
-      subtitle="Choose how you want to sign in"
-    >
-      <Card>
-        <CardContent className="pt-6 grid gap-4">
-          <Button 
-            variant="outline" 
-            className="h-14 justify-start p-4" 
-            onClick={() => navigate("/auth/admin")}
-          >
-            <ShieldCheck className="mr-4 h-5 w-5 text-primary" />
-            <div className="text-left">
-              <div className="font-medium">Admin</div>
-              <div className="text-xs text-muted-foreground">
-                Access the station management dashboard
+    <div className="relative w-full h-screen overflow-hidden">
+      <VideoBackground />
+      <div className="relative z-10 flex items-center justify-center md:justify-end h-full px-4 md:px-8 lg:pr-24">
+        <motion.div
+          initial={{ x: 100, opacity: 0 }}
+          animate={{ x: 0, opacity: 1 }}
+          transition={{ duration: 0.6, ease: "easeOut" }}
+          className="w-full max-w-md bg-white/10 backdrop-blur-md rounded-2xl shadow-2xl p-6 md:p-8 text-white"
+        >
+          <h2 className="text-2xl md:text-3xl font-bold mb-3">Welcome to Petro-Pulse</h2>
+          <p className="text-lg md:text-xl text-gray-200 mb-6 md:mb-8">Choose how you want to sign in</p>
+
+          <div className="space-y-3 md:space-y-4">
+            {/* Admin Option */}
+            <motion.button
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+              onClick={() => handleTypeSelect("admin")}
+              className="w-full p-4 md:p-5 bg-white/10 hover:bg-white/20 rounded-lg transition-all duration-300 flex items-center space-x-3 md:space-x-4"
+            >
+              <i className="fas fa-shield-alt text-blue-400 text-xl md:text-2xl"></i>
+              <div className="text-left">
+                <div className="text-base md:text-lg font-medium">Admin</div>
+                <div className="text-sm md:text-base text-gray-300">Access station management dashboard</div>
               </div>
-            </div>
-          </Button>
-          
-          <Button 
-            variant="outline" 
-            className="h-14 justify-start p-4" 
-            onClick={() => navigate("/auth/employee")}
-          >
-            <UserCircle className="mr-4 h-5 w-5 text-blue-500" />
-            <div className="text-left">
-              <div className="font-medium">Employee</div>
-              <div className="text-xs text-muted-foreground">
-                Access your employee portal
+            </motion.button>
+
+            {/* Employee Option */}
+            <motion.button
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+              onClick={() => handleTypeSelect("employee")}
+              className="w-full p-4 md:p-5 bg-white/10 hover:bg-white/20 rounded-lg transition-all duration-300 flex items-center space-x-3 md:space-x-4"
+            >
+              <i className="fas fa-user-tie text-green-400 text-xl md:text-2xl"></i>
+              <div className="text-left">
+                <div className="text-base md:text-lg font-medium">Employee</div>
+                <div className="text-sm md:text-base text-gray-300">Access your employee portal</div>
               </div>
-            </div>
-          </Button>
-          
-          <Button 
-            variant="outline" 
-            className="h-14 justify-start p-4" 
-            onClick={() => navigate("/auth/customer")}
-          >
-            <Users className="mr-4 h-5 w-5 text-green-500" />
-            <div className="text-left">
-              <div className="font-medium">Customer</div>
-              <div className="text-xs text-muted-foreground">
-                Access your customer account
+            </motion.button>
+
+            {/* Customer Option */}
+            <motion.button
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+              onClick={() => handleTypeSelect("customer")}
+              className="w-full p-4 md:p-5 bg-white/10 hover:bg-white/20 rounded-lg transition-all duration-300 flex items-center space-x-3 md:space-x-4"
+            >
+              <i className="fas fa-users text-purple-400 text-xl md:text-2xl"></i>
+              <div className="text-left">
+                <div className="text-base md:text-lg font-medium">Customer</div>
+                <div className="text-sm md:text-base text-gray-300">Access your customer account</div>
               </div>
-            </div>
-          </Button>
-        </CardContent>
-      </Card>
-    </AuthLayout>
+            </motion.button>
+          </div>
+
+        </motion.div>
+      </div>
+    </div>
   );
 }
