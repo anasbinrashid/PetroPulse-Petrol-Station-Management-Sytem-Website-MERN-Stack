@@ -82,11 +82,11 @@ After seeding the database, you can use the following credentials to log in:
   - Password: admin123
 
 - **Employee:**
-  - Email: employee@petropulse.com
+  - Email: adanmalik@petropulse.com
   - Password: employee123
 
 - **Customer:**
-  - Email: customer@example.com
+  - Email: adan.malik@example.com
   - Password: customer123
 
 ## Project Structure
