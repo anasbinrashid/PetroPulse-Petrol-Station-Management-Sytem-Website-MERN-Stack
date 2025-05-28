@@ -102,7 +102,7 @@ export function SidebarNav() {
     localStorage.removeItem("userName");
     localStorage.removeItem("employeeId");
     localStorage.removeItem("role");
-    window.location.href = "/auth/login"; // Redirect to login page
+    window.location.href = "/"; // Redirect to root page
   };
 
   return (

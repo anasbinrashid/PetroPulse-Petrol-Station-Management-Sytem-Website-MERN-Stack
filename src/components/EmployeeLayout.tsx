@@ -108,7 +108,7 @@ export function EmployeeLayout() {
     localStorage.removeItem("employeeId");
     localStorage.removeItem("role");
     toast.success("You have been logged out");
-    navigate("/auth/login");
+    navigate("/");
   };
 
   // Modified check - ensure we have both token and employeeId
